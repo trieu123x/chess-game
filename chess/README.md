@@ -35,11 +35,43 @@ Hai protocol nhị phân tự thiết kế: **CGP** (client↔server) và **RVP*
 | N5 | Session resume, replay theo `ply` | Rớt mạng = mất ván | E5 |
 | N6 | Protocol độc lập ngôn ngữ (Java ↔ Node) | – | Interop test |
 
-## Bước tiếp theo
+## Tiến độ (cập nhật 22/09/2026)
 
-1. Điền tên nhóm, MSSV, tên giảng viên vào `PROPOSAL.md`.
-2. Gửi `PROPOSAL.md` cho giảng viên trong tuần 22–28/09.
-3. SV1 chốt `PROTOCOL.md` v1.0 → cả nhóm bắt đầu code song song theo `PLAN.md`.
+**Mốc M1 (hạn 28/09): ĐẠT.**
+
+| Hạng mục | Trạng thái | Bằng chứng |
+| --- | --- | --- |
+| `PROTOCOL.md` v1.0 đóng băng | Xong | Changelog ghi ngày 22/09/2026 |
+| Codec 3 ngôn ngữ + interop | Xong | Java 20 test, Node 9 test, TS 6/6 vector — chung `source/common-js/testvectors.json` |
+| Database + dữ liệu mẫu | Xong | PostgreSQL 18, 5 bảng, 406 tài khoản |
+| Maven multi-module | Xong | 3 module, build ra `dcgs-server.jar`, `dcgs-client.jar` |
+| Server accept nhiều kết nối | Xong | 50 bot đăng nhập đồng thời, 50/50 thành công |
+| Client Java LOGIN | Xong | `dcgs-client.jar` → LOGIN_OK, RTT 2 ms |
+| Rules service trả RULES_OK cho e2e4 | Xong | 10/10 test RVP |
+| Bot sinh tải | Xong | `bot.js --bots 50`, ghi CSV |
+| DAO user/session/game/move | Xong | `Database.java` |
+| Web client 3 chế độ | Xong (vượt kế hoạch) | `npm run check:app` |
+| Docker | Xong (vượt kế hoạch) | compose 6 service |
+
+Chưa làm (tuần 2 theo `PLAN.md`): matchmaking, GameActor, đồng hồ server, gateway WebSocket, chế độ `server.io=blocking` làm baseline cho E2.
+
+Việc nhóm phải tự làm: điền tên/MSSV/giảng viên vào `PROPOSAL.md` rồi gửi giảng viên xác nhận.
+
+### Chạy thử nhanh
+
+```bash
+# 1. Rules service
+cd source/rules-service && npm install && node index.js --port 6001
+
+# 2. Game server (terminal khác)
+cd source/server && java -jar target/dcgs-server.jar --config config.properties
+
+# 3. Client CLI đăng nhập
+cd source/client-cli && java -jar target/dcgs-client.jar --user alice --pass chess123
+
+# 4. 50 bot đăng nhập đồng thời
+cd source/bot && node bot.js --bots 50
+```
 
 ## Chạy (điền khi có code)
 

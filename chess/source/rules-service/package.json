@@ -1,0 +1,15 @@
+{
+  "name": "dcgs-rules-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kiem tra luat co qua RVP - stateless, chay nhieu instance",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0"
+  }
+}

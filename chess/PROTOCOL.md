@@ -218,4 +218,4 @@ Rules service **stateless hoàn toàn**: mọi request tự mang FEN, nên thêm
 
 | Version | Ngày | Thay đổi |
 | --- | --- | --- |
-| 1.0 | (điền khi chốt, tuần 1) | Bản đầu tiên |
+| 1.0 | **22/09/2026** | Bản đầu tiên, đã đóng băng. Ba bản hiện thực (Java / Node / TypeScript) khớp từng byte trên `source/common-js/testvectors.json`. Mọi thay đổi sau mốc này phải tăng phiên bản và ghi vào bảng này. |

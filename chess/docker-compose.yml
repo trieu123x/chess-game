@@ -78,7 +78,8 @@ services:
   rules-1:
     profiles: ["full"]
     build:
-      context: ./source/rules-service
+      context: ./source
+      dockerfile: rules-service/Dockerfile
     container_name: dcgs-rules-1
     environment:
       RULES_PORT: "6001"
@@ -87,7 +88,8 @@ services:
   rules-2:
     profiles: ["full"]
     build:
-      context: ./source/rules-service
+      context: ./source
+      dockerfile: rules-service/Dockerfile
     container_name: dcgs-rules-2
     environment:
       RULES_PORT: "6001"
@@ -97,7 +99,8 @@ services:
   gateway:
     profiles: ["full"]
     build:
-      context: ./source/web-spectator
+      context: ./source
+      dockerfile: web-spectator/Dockerfile
     container_name: dcgs-gateway
     depends_on:
       - server
@@ -112,7 +115,8 @@ services:
   bot:
     profiles: ["full"]
     build:
-      context: ./source/bot
+      context: ./source
+      dockerfile: bot/Dockerfile
     container_name: dcgs-bot
     depends_on:
       - server

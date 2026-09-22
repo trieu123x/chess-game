@@ -1,0 +1,14 @@
+{
+  "name": "dcgs-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bot sinh tai cho Game Server - noi CGP tren TCP",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0"
+  }
+}
