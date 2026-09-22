@@ -1,0 +1,6721 @@
+/* ═══════════════════════════════════════════════════
+   App Shell
+   ═══════════════════════════════════════════════════ */
+.app-shell {
+  position: relative;
+  width: 100%;
+  /* The height a reader can actually see. `vh` is the *large* viewport -- the
+     height a phone browser has once its chrome has retracted -- and this shell
+     does not scroll, so sizing it that way puts its last band permanently
+     behind the URL bar. Nothing on the page scrolls the root either, so that
+     chrome never retracts and the band never comes back. `vh` first, for a
+     browser that has no `dvh`. */
+  height: 100vh;
+  height: 100dvh;
+  font-family: var(--font-body);
+  background:
+    linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 52%, var(--bg-base) 100%);
+  /* Ensure shell never scrolls horizontally */
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.rem-probe {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.resizing * {
+  cursor: col-resize !important;
+}
+
+/* ═══════════════════════════════════════════════════
+   Panel system
+   ═══════════════════════════════════════════════════ */
+.main-container {
+  flex: 1;
+  display: flex;
+  position: relative;
+  min-height: 0;
+  overflow-x: hidden;
+  /* Prevent horizontal spill */
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+.panel {
+  position: relative;
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 4;
+  overflow: visible;
+}
+
+.panel-inner {
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 180ms ease;
+}
+
+.panel-inner[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.panel.panel-collapsed .panel-inner {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.78rem 0.9rem;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.panel-content {
+  padding: var(--space-md);
+}
+
+.panel-copy {
+  margin: 0 0 var(--space-md);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.panel-copy.small {
+  margin-top: var(--space-xs);
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+.evaluation-source {
+  overflow-wrap: anywhere;
+}
+
+.review-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.review-report-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  min-width: min-content;
+  flex: 1 1 8rem;
+  white-space: normal;
+}
+
+.review-depth-guidance .review-report-actions button {
+  min-height: 44px;
+  min-width: min-content;
+}
+
+.review-report-actions svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+/* ═══════════════════════════════════════════════════
+   Buttons
+   ═══════════════════════════════════════════════════ */
+.panel button {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 32px;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0.42rem 0.66rem;
+  line-height: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.panel :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  min-height: 32px;
+  box-sizing: border-box;
+}
+
+/* A tick box is a square, and it grows with the reader's text like everything
+   else here does.
+   Neither was true. It had no size at all outside the phone's media query, so a
+   desktop got the user agent's 13px -- **measured** unchanged at 100% and at
+   200% text, a 13px box beside text twice its old size. And where the phone did
+   size it, it sized it in one axis only: `width` is a hint a flex item gives up,
+   and the label beside it wraps, so at 200% text on a 375px phone the five
+   boxes in Settings measured 23x42, 26x42, 42x42, 42x42 and 20x42 -- tall thin
+   rectangles, a different shape on every row, by how many lines the label next
+   to it took.
+   The label is what a reader presses (it wraps the input, so the whole row is
+   the target, which is why this is shape rather than reach), but the box is what
+   they read the state off. */
+input[type="checkbox"] {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .panel button:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-strong);
+    color: var(--text-heading);
+  }
+}
+
+.panel button:active {
+  transform: scale(0.97);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.app-shell :is(button,
+  summary,
+  input,
+  select,
+  textarea,
+  a,
+  [role="button"],
+  [role="slider"],
+  [role="separator"]):focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+.app-shell :is(button, summary, input, select, textarea, a, [role="button"], [role="slider"], [role="separator"]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* The board is the one surface where the ring lands on a colour the reader
+   picked rather than one the app did, and a chessboard is two of them.
+   Measured on the default scheme with `--info`: **2.68:1** on the light square
+   and **1.17:1** on the dark in the dark theme -- under the 3:1 a focus
+   indicator owes, on all 64 squares -- and 2.13:1 on the dark square in the
+   light theme. No single colour clears 3:1 against both a cream and a mid-brown
+   except a near-black one, and `boardThemes.ts` already holds every scheme's
+   ink to 4.5:1 against its own dark square for the coordinates. So the ring
+   borrows it, and moves with the board the reader chose. */
+.app-shell .board-wrap [data-square]:focus-visible,
+.app-shell .board-wrap [data-square] *:focus-visible {
+  outline-color: var(--board-ink, #101218);
+  /* Inside the square rather than 2px outside it. Outside, the ring lies on
+     the neighbours, and the squares after it in the grid paint straight over
+     it -- screenshotted on d5, the top and left edges drawn and the right and
+     bottom gone. Inside, it is whole, it is never clipped by the board's edge
+     on a back-rank piece, and it sits on the one colour its ink is proven
+     against. */
+  outline-offset: -3px;
+}
+
+/* Primary button */
+.btn-primary {
+  background: linear-gradient(180deg, #38dcc8, #16b6a8) !important;
+  color: #041310 !important;
+  border-color: rgba(125, 239, 222, 0.58) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 22px rgba(45, 212, 191, 0.16) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: linear-gradient(180deg, #5eead4, #20c7b6) !important;
+    border-color: rgba(167, 243, 232, 0.76) !important;
+    box-shadow: 0 10px 28px rgba(45, 212, 191, 0.24) !important;
+    color: #02110f !important;
+  }
+}
+
+.btn-primary:active {
+  background: #12a89a !important;
+}
+
+.btn-icon {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .panel button:hover .btn-icon {
+    opacity: 1;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Top bar
+   ═══════════════════════════════════════════════════ */
+.top {
+  width: 100%;
+  z-index: 2000;
+  flex-shrink: 0;
+  /* Don't allow header to shrink */
+  background: var(--bg-scrim);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 0 var(--glass-1);
+}
+
+.top .panel-inner {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  flex-direction: row;
+  align-items: center;
+  overflow: visible;
+  padding: 0.44rem 0.9rem;
+  padding-top: calc(0.44rem + env(safe-area-inset-top));
+  padding-left: calc(0.9rem + env(safe-area-inset-left));
+  padding-right: calc(0.9rem + env(safe-area-inset-right));
+}
+
+.top .panel-header {
+  display: none;
+}
+
+.top .panel-content {
+  padding: 0.38rem 0.85rem;
+  flex: 1;
+  overflow: visible;
+}
+
+/* Wraps rather than spilling: at 150% text the row is wider than a 1440px
+   window, and with nowrap the Settings button sat at x=1611 with no way to
+   reach it. */
+.top .compact-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  /* The bar never scrolls as a whole: brand actions and Settings stay pinned so
+     they are always reachable, and only the mode groups scroll between them. */
+  .top .compact-grid {
+    overflow: visible;
+    box-sizing: border-box;
+  }
+
+  /* The brand is the page's <h1>. `display: none` would leave a phone with no
+     top-level heading at all, so it is taken out of the layout but kept in the
+     accessibility tree. */
+  .top .app-brand {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+    min-height: 0;
+    border: 0;
+  }
+
+  .top .panel-inner {
+    padding-inline: calc(0.5rem + env(safe-area-inset-left)) calc(0.5rem + env(safe-area-inset-right));
+  }
+
+  .top .mobile-modes-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    /* Same reason as the board's strip: a group appearing at the head of the
+       row must not scroll the row to keep the old one still. */
+    overflow-anchor: none;
+  }
+
+  .top .mobile-modes-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top .mobile-modes-wrapper>* {
+    scroll-snap-align: start;
+  }
+
+  /* `.top` because the plain-class rule further down the file would otherwise
+     win on source order and this would be dead -- which it was, along with a
+     2.1rem button size that the 2.75rem touch-target rule has always
+     overridden. The tighter gap is 11px across the group, which is what it
+     needed to stop scrolling at 320px. */
+  .top .mobile-actions {
+    gap: 0.2rem;
+  }
+
+  .top .settings-menu {
+    margin-left: auto;
+  }
+
+  .top .settings-menu>summary .btn-label {
+    display: none;
+  }
+
+  .top .settings-menu>summary {
+    padding-inline: 0.7rem !important;
+  }
+
+}
+
+.top .compact-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.skip-links {
+  position: fixed;
+  top: calc(0.5rem + env(safe-area-inset-top));
+  left: calc(0.5rem + env(safe-area-inset-left));
+  z-index: 4000;
+  display: flex;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+.skip-links a {
+  position: absolute;
+  min-width: max-content;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(125, 239, 222, 0.58);
+  border-radius: var(--radius-md);
+  background: var(--accent-chip-bg);
+  color: var(--accent-chip-text);
+  box-shadow: var(--shadow-md);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  transform: translateY(-220%);
+  opacity: 0;
+  pointer-events: auto;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+/* Both skip links sit in the same place, because only one is ever on screen.
+   The second was offset by `left: 7.2rem` to clear the first. **Measured** by
+   focusing each: the unfocused one is `opacity: 0` and translated clear of the
+   viewport, so the two are never visible together and the offset guards nothing
+   -- while at 200% text it scales to 230px, putting "Skip to analysis" at a right
+   edge of 471px on a 375px phone. 96px of a keyboard user's first landmark off
+   the side of the screen, to avoid an overlap that cannot happen. */
+
+.skip-links a:focus-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.mobile-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+  background: var(--glass-2);
+  padding: 0.2rem;
+  border-radius: 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+.mobile-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  min-height: unset;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  box-sizing: border-box;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mobile-actions button:hover {
+    background: var(--glass-4);
+    color: var(--text-primary);
+  }
+}
+
+.mobile-actions button:active {
+  background: var(--glass-5);
+}
+
+.mobile-actions .btn-label {
+  display: none;
+}
+
+.mobile-modes-wrapper {
+  display: contents;
+}
+
+.top-mode-pills {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.2rem;
+  background: var(--glass-2);
+  padding: 0.2rem;
+  border-radius: 24px;
+  border: 1px solid var(--border-subtle);
+  margin: 0;
+  min-height: unset;
+}
+
+.top .compact-grid button:not(.btn-icon-only),
+.top .settings-menu>summary {
+  min-height: unset;
+  height: 2.2rem;
+  padding: 0 0.8rem;
+  font-size: 0.78rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Text labels make the action cluster easier to scan when the room genuinely
+   exists. At 1280px they forced Settings onto a second row, taking a full row
+   of height from the board for five words that already have tooltips and
+   accessible names. Keep the compact icon treatment through laptop widths. */
+@media (min-width: 1400px) {
+  .mobile-actions .btn-label {
+    display: inline;
+  }
+
+  .mobile-actions button {
+    width: auto;
+    min-width: 2.2rem;
+    padding: 0 0.7rem;
+    border-radius: var(--radius-pill);
+    gap: 0.35rem;
+  }
+}
+
+.top .settings-menu {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* App branding */
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* It is the page's <h1>; drop the UA heading size and margins. */
+  margin: 0 0.75rem 0 0;
+  font-size: inherit;
+  font-weight: inherit;
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--border-subtle);
+  min-height: 2.2rem;
+}
+
+.app-brand-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--accent-ink);
+  opacity: 0.95;
+}
+
+.app-brand-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text-heading);
+}
+
+/* Toolbar divider */
+.toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-default);
+  margin: 0 0.1rem;
+  flex-shrink: 0;
+}
+
+/* Settings dropdown */
+.top .settings-menu {
+  margin-bottom: 0;
+  margin-left: 0.2rem;
+  border: none;
+  background: none;
+  position: relative;
+}
+
+.top .settings-menu>summary {
+  max-width: max-content;
+  white-space: nowrap;
+  padding: 0.38rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.top .settings-menu>summary::-webkit-details-marker {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .top .settings-menu>summary:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-strong);
+    color: var(--text-heading);
+  }
+}
+
+.top .settings-menu[open] {
+  position: relative;
+}
+
+.top .settings-body {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: auto;
+  right: 0;
+  /* Align to right edge for easier access from the settings button */
+  z-index: 1000;
+  width: 340px;
+  /* Slightly narrower for mobile friendliness */
+  max-height: 72vh;
+  max-height: 72dvh;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 1px var(--border-subtle);
+  animation: dropdown-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Board stage
+   ═══════════════════════════════════════════════════ */
+.board-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--stage-pad-y) var(--stage-pad-x);
+  z-index: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.board-layout {
+  width: min-content;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+.board-meta-strip {
+  width: 100%;
+  min-height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.34rem 0.46rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * Everything the strip *says*, in one row that can be longer than the strip.
+ *
+ * Nested rather than laid out directly, so the controls after it can be pinned
+ * where they are always reachable while the readings scroll between them --
+ * which is the arrangement the top bar already uses, and for the same reason.
+ */
+.board-meta-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.board-meta-flow>span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Whose turn it is, the move number and the engine status are short and must
+   never clip; the game's players are the long, truncation-tolerant item, so
+   they absorb the squeeze. */
+.board-meta-flow>.turn-pill,
+.board-meta-flow>.board-meta-move,
+.board-meta-flow>.board-meta-status {
+  flex: none;
+}
+
+.board-meta-flow>.board-meta-game {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.board-meta-flow>.board-meta-practice {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.42rem;
+  overflow: visible;
+  color: var(--info);
+}
+
+.board-meta-practice>span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-meta-practice.retry {
+  color: var(--quality-inaccuracy);
+}
+
+.board-meta-practice.correct {
+  color: var(--quality-best);
+}
+
+.board-meta-practice button {
+  flex: none;
+  min-height: 1.75rem;
+  padding: 0.22rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+/* The drill's verdict, in the strip above the board it judges. Tones borrowed
+   from the review's practice, which is the same job: neutral while it waits,
+   the inaccuracy amber when a move was not the line, the best-move green when
+   the line is done. */
+.board-meta-drill {
+  flex: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.44rem;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.board-meta-drill.ready {
+  color: var(--info);
+  border-color: color-mix(in srgb, var(--info) 42%, transparent);
+}
+
+.board-meta-drill.retry,
+.board-meta-drill.away {
+  color: var(--quality-inaccuracy);
+  border-color: color-mix(in srgb, var(--quality-inaccuracy) 42%, transparent);
+}
+
+.board-meta-drill.correct {
+  color: var(--quality-best);
+  border-color: color-mix(in srgb, var(--quality-best) 42%, transparent);
+}
+
+.board-quality-pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.44rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.board-quality-pill.quality-book {
+  border-color: rgba(203, 213, 225, 0.42);
+  color: var(--quality-book);
+}
+
+/* Excellent takes Best's colour: both mean the move was fine, and the review
+   palette already carries two greens nobody can tell apart at 5px. */
+.board-quality-pill.quality-best,
+.board-quality-pill.quality-excellent {
+  border-color: rgba(16, 185, 129, 0.42);
+  color: var(--quality-best);
+}
+
+.board-quality-pill.quality-good {
+  border-color: rgba(52, 211, 153, 0.42);
+  color: var(--quality-good);
+}
+
+.board-quality-pill.quality-inaccuracy {
+  border-color: rgba(251, 191, 36, 0.44);
+  color: var(--quality-inaccuracy);
+}
+
+.board-quality-pill.quality-mistake {
+  border-color: rgba(249, 115, 22, 0.44);
+  color: var(--quality-mistake);
+}
+
+.board-quality-pill.quality-blunder {
+  border-color: rgba(239, 68, 68, 0.44);
+  color: var(--quality-blunder);
+}
+
+.turn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-primary);
+}
+
+.turn-pill::before {
+  content: "";
+  width: 0.58rem;
+  height: 0.58rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+}
+
+.turn-pill.white::before {
+  background: #f4ead8;
+}
+
+.turn-pill.black::before {
+  background: #242936;
+}
+
+/* No side to move at the end of a game, so no side dot either. */
+.turn-pill.final {
+  font-weight: 700;
+  animation: badge-pop 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.turn-pill.final::before {
+  display: none;
+}
+
+.board-meta-game {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.board-meta-game>span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-meta-game strong {
+  flex: none;
+  color: var(--text-primary);
+  background: var(--glass-4);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  letter-spacing: 0;
+}
+
+/* The opening name, under the meta strip. The mobile breakpoint has always
+   tightened this pill's padding, gap and font size -- but the rules it was
+   tightening were never written, so on a desktop the container was a bare
+   block, the ECO badge a plain inline, and the two ran together: the Slav
+   read "D16Slav Defense: Smyslov Variation". */
+.board-opening-label {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Holding the row open before there is anything to put in it. `visibility`
+   rather than `display`, so the pill still measures itself: the row's height is
+   the pill's height, and a height guessed at here would be a board that moves
+   by the difference the first time an opening is named. */
+.board-opening-label.is-empty .opening-pill {
+  visibility: hidden;
+}
+
+/* The same reading inside the strip, for the one layout that cannot spare a
+   row for it. Which of the two is drawn is decided in `App.tsx`, so only one
+   of them is ever in the document -- two, with one hidden, is how a check for
+   "the opening's code" comes to find the invisible copy first. */
+.board-meta-opening {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: 13rem;
+  overflow: hidden;
+  color: var(--text-secondary);
+}
+
+.board-meta-opening>span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-meta-opening>strong {
+  flex: none;
+  padding: 0.08rem 0.34rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--glass-4);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--text-primary);
+}
+
+.opening-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  padding: 0.24rem 0.62rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.opening-pill strong {
+  flex: none;
+  padding: 0.1rem 0.44rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--glass-4);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+
+/* The name is the long half, so it is the half that truncates. */
+.opening-pill>span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Third action in the analyze row: a mode change, not an engine command, so it
+   reads as neither the primary nor a plain secondary. */
+/* Sits on its own row above the experience toggle, so it needs the row's
+   bottom margin closed up rather than doubled. */
+.play-from-here-row {
+  margin-top: calc(-1 * var(--space-md) + 0.35rem);
+}
+
+.play-from-here-btn {
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.play-from-here-btn:not(:disabled) {
+  border-color: rgba(63, 185, 80, 0.34);
+  color: var(--quality-good, #34d399);
+}
+
+.play-from-here-btn:not(:disabled):hover {
+  border-color: rgba(63, 185, 80, 0.6);
+}
+
+.fade-in-slide {
+  animation: slideDownFade 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes slideDownFade {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.batch-review-btn {
+  min-width: 140px;
+}
+
+.pulsing.btn-primary {
+  animation: bgPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes bgPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(63, 185, 80, 0);
+  }
+}
+
+.board-wrap {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  gap: var(--eval-col-gap);
+  border-radius: 14px;
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  touch-action: none;
+  width: min-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/*
+ * A touch that starts on an empty square can never become a drag, so it has no
+ * reason to hold the browser back.
+ *
+ * `touch-action: none` on the whole board is what the drag sensor asks for, and
+ * on a phone it costs the reader most of the page. **Measured** at 390x844 with
+ * a game on: `.main-container` holds 1061px of content in 558px, and of
+ * thirteen sample heights down it only three scroll -- one strip above the
+ * board and two below. The board is the biggest thing on the screen and the
+ * natural place to put a thumb, and it answered a swipe with nothing.
+ *
+ * Only a square with a piece on it can start a drag. Handing the rest back to
+ * the browser costs nothing and is not a race: `touch-action` is intersected
+ * from the touched element up through its ancestors, so a piece's `none` still
+ * wins wherever a drag could actually begin, and the decision is made at
+ * touch-down rather than raced out over the first few pixels. Measured with a
+ * finger that starts slowly, 2px at a time: eight of eight drags in eight
+ * directions still play, three of three taps still select, all eight sampled
+ * empty squares scroll, and none of the six sampled squares holding a piece
+ * does.
+ *
+ * Behind `@supports` because without `:has()` there is no way to say "a square
+ * with a piece on it", and a browser that ignored only the second rule would
+ * hand the whole board to the scroller -- which is the one outcome worse than
+ * the dead zone this fixes.
+ */
+@supports selector(:has(*)) {
+  .board-wrap {
+    touch-action: pan-y;
+  }
+
+  .board-wrap [data-square]:has([data-piece], svg, img) {
+    touch-action: none;
+  }
+}
+
+/* Evaluation column: in flow beside the board so it can never be clipped */
+.eval-column {
+  position: relative;
+  flex: none;
+  width: var(--eval-col-w);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.board-area {
+  position: relative;
+  border-radius: 14px;
+  padding: var(--board-frame);
+  background:
+    linear-gradient(145deg, var(--glass-4), var(--glass-1)),
+    var(--bg-surface);
+  border: 1px solid var(--border-default);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 var(--glass-3);
+}
+
+.board-surface {
+  width: min-content;
+  max-width: 100%;
+}
+
+/* ── High contrast ─────────────────────────────────────
+   Windows' high-contrast mode replaces every background and border with the
+   reader's own palette and drops box-shadows entirely. Almost all of this app
+   is better for it — **measured** at 1440×900 with `forced-colors: active`, the
+   bars, buttons, panels, the Coach card, the move list, the library and both
+   graphs all render and read correctly, because their meaning is in their text
+   and their SVG strokes, which the mode leaves alone.
+
+   Two places are not, and both for the same reason: the colour *is* the
+   reading, so replacing it deletes the content rather than restyling it.
+
+   The board loses its squares. All 64 measure `rgb(255, 255, 255)` — light,
+   dark, and the two the last move was played between. What is left is a piece
+   diagram on a blank field: no light or dark complex, no way to see which
+   bishop is which, and no memory of the last move, whose ring is a box-shadow
+   and whose wash is a background. A chessboard's colours are not decoration.
+
+   The evaluation bar loses its fill and keeps only its "+0.4" label, so the
+   one reading a beginner has becomes a number they have to interpret.
+
+   `forced-color-adjust: none` is the mechanism the spec provides for exactly
+   this, and it is inherited, so one declaration on each covers the squares, the
+   coordinates, the marks and the bar's two halves. Everything around them stays
+   in the reader's palette, which is the point: this opts out the two elements
+   whose colours carry meaning, not the app. */
+.board-surface,
+.eval-column {
+  forced-color-adjust: none;
+}
+
+/* Each piece is an SVG left `display: inline` inside the draggable wrapper the
+   board library gives it, so the wrapper's box is a *line* box: the SVG plus
+   the strut's descender under it. That is 7px at every board size — the leading
+   comes from the inherited font, not from the board — and it makes every
+   piece's box 7px taller than the square it sits in.
+
+   The art is unaffected (the SVG is square and top-aligned), but the box is
+   what the browser focuses, and the overhang shows in two places. Tabbing to a
+   piece on the near rank scrolls the board's own clipped grid down by 7px to
+   reveal a box that is 7px past its bottom edge -- **measured** at 1440x900 and
+   375x812: `scrollTop` 0 -> 7 and the whole board shifting up under the reader,
+   with the far rank sliced off the top. And on that rank the focus ring's
+   bottom edge is clipped away, so the one piece a keyboard player most needs to
+   see marked is the one drawn without a full ring.
+
+   `display: block` on the SVG is the whole fix: no line box, no strut, no
+   descender, and the wrapper measures the square exactly. */
+[data-piece]>svg {
+  display: block;
+}
+
+/* Eval bar + score label wrapper */
+.eval-bar-label {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  padding: 3px 0 4px;
+  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+  font-size: 0.56rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--tooltip-text);
+  background: var(--bg-tooltip);
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  text-align: center;
+  z-index: 6;
+}
+
+/* AI thinking overlay */
+.ai-thinking-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: var(--bg-inset);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 12px;
+  pointer-events: none;
+}
+
+.ai-thinking-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  backdrop-filter: blur(12px);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.thinking-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.promotion-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--bg-inset);
+}
+
+.promotion-chooser {
+  width: min(420px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+}
+
+.promotion-choice {
+  min-width: 0;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.promotion-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+}
+
+.promotion-choice kbd,
+.promotion-cancel kbd {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-default);
+  background: var(--glass-3);
+  color: var(--text-tertiary);
+}
+
+.promotion-glyph {
+  font-size: 2.35rem;
+  line-height: 1;
+}
+
+.promotion-cancel {
+  grid-column: 1 / -1;
+  /* 44px like every other control here. At 34 it was the one target in the
+     chooser under the floor the rest of the app is swept against, and it is
+     the one pressed by somebody who has just moved a pawn they meant to keep. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.thinking-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: thinking-bounce 1.2s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinking-bounce {
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.4;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Side panels (left & right)
+   ═══════════════════════════════════════════════════ */
+.left {
+  height: 100%;
+}
+
+.app-shell[data-workspace-mode="play"] .left {
+  display: none !important;
+}
+
+.left .panel-inner {
+  border-left: none;
+  border-top: none;
+  border-bottom: none;
+  border-radius: 0;
+  box-shadow: 1px 0 0 var(--border-subtle);
+}
+
+.right {
+  height: 100%;
+}
+
+.right .panel-inner {
+  border-right: none;
+  border-top: none;
+  border-bottom: none;
+  border-radius: 0;
+  box-shadow: -1px 0 0 var(--border-subtle);
+}
+
+.left .panel-content,
+.right .panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.8rem;
+  min-width: 0;
+}
+
+.left .panel-header {
+  display: none;
+}
+
+/* One scroll container preserves the reading position when an enlarged header
+   stops being sticky. It must not reserve most of a short panel for controls. */
+@media (min-width: 901px) {
+  .right .panel-inner {
+    overflow-y: auto;
+    scroll-padding-top: var(--analysis-header-offset, 0px);
+    scroll-padding-bottom: 8px;
+  }
+
+  .right .panel-content {
+    flex: none;
+    overflow: visible;
+  }
+
+  .right .analysis-header {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: var(--bg-panel);
+  }
+
+  .right.header-in-scroll .analysis-header {
+    position: static;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Bottom bar
+   ═══════════════════════════════════════════════════ */
+.bottom {
+  width: 100%;
+  z-index: 100;
+  flex-shrink: 0;
+  background: var(--bg-scrim);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.bottom .panel-inner {
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+  background: var(--bg-scrim);
+  box-shadow: 0 -1px 0 var(--border-subtle);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.bottom .panel-header {
+  display: none;
+}
+
+.bottom .panel-content {
+  padding: 0.38rem 0.9rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  min-height: 2.45rem;
+}
+
+.bottom .best-move {
+  margin: 0;
+  margin-left: auto;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bottom .best-move::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   Hidden panel states
+   ═══════════════════════════════════════════════════ */
+/* Collapsing a bar has to give its space back. A transform slid the bar out of
+   view but left its full height reserved, so hiding the status strip bought a
+   blank band rather than a bigger board. */
+.top.hidden,
+.bottom.hidden {
+  height: 0;
+  min-height: 0;
+  flex-basis: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.top.hidden .panel-inner,
+.bottom.hidden .panel-inner {
+  /* A zero-height border box still overflows by its borders. In WebKit a
+     resulting root scrollbar can cross the 900px breakpoint and hide the
+     handle needed to reopen the bar. Remove hidden content and its tab stops. */
+  display: none;
+}
+
+/* The handle is the only way back, so it stays live and legible. */
+.top.hidden .resize-handle,
+.bottom.hidden .resize-handle {
+  pointer-events: auto;
+}
+
+.top.hidden .resize-pill,
+.bottom.hidden .resize-pill {
+  width: 56px;
+  height: 4px;
+  background: rgba(110, 118, 129, 0.55);
+}
+
+/* ═══════════════════════════════════════════════════
+   Resize handles
+   ═══════════════════════════════════════════════════ */
+.resize-handle {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 110;
+  user-select: none;
+}
+
+.resize-handle-left,
+.resize-handle-right {
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.resize-handle-right {
+  right: -7px;
+}
+
+.resize-handle-left {
+  left: -7px;
+}
+
+/* A collapsed panel is 0px wide, so its handle would hang half outside the
+   window — leaving a 2px sliver as the only way back. Pull it fully inside and
+   make the grip legible so the panel is visibly reopenable. */
+.panel.collapsed .resize-handle-right {
+  right: -14px;
+}
+
+.panel.collapsed .resize-handle-left {
+  left: -14px;
+}
+
+.panel.collapsed .resize-handle {
+  cursor: pointer;
+}
+
+.panel.collapsed .resize-pill {
+  width: 4px;
+  height: 56px;
+  background: rgba(110, 118, 129, 0.55);
+}
+
+.resize-handle-top,
+.resize-handle-bottom {
+  left: 0;
+  right: 0;
+  height: 14px;
+  cursor: pointer;
+}
+
+.resize-handle-top {
+  top: -7px;
+}
+
+.resize-handle-bottom {
+  bottom: -7px;
+}
+
+/* A collapsed bar is a zero-height box on the viewport edge, so a handle centred
+   on it hangs half outside — the same 2px sliver the side panels used to leave.
+   Pull it fully inside. */
+.top.hidden .resize-handle-bottom {
+  bottom: -14px;
+}
+
+.bottom.hidden .resize-handle-top {
+  top: -14px;
+}
+
+.resize-pill {
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: rgba(110, 118, 129, 0.15);
+  transition: all 200ms ease;
+}
+
+.resize-pill.horizontal {
+  flex-direction: row;
+  width: 32px;
+  height: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .resize-handle:hover .resize-pill {
+    background: rgba(110, 118, 129, 0.36);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+  .resize-handle-left:hover .resize-pill,
+  .resize-handle-right:hover .resize-pill {
+    height: 48px;
+    width: 4px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+  .resize-handle-top:hover .resize-pill,
+  .resize-handle-bottom:hover .resize-pill {
+    width: 48px;
+    height: 4px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Settings & controls (dropdown content)
+   ═══════════════════════════════════════════════════ */
+.settings-menu {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.settings-menu>summary,
+.advanced-settings>summary {
+  cursor: pointer;
+  padding: 0.5rem 0.65rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  list-style: none;
+}
+
+.settings-menu>summary::-webkit-details-marker,
+.advanced-settings>summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-backdrop {
+  display: none;
+}
+
+.settings-menu:not([open]) .settings-body {
+  display: none;
+}
+
+.settings-menu[open] .settings-backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 990;
+  cursor: default;
+}
+
+.settings-body {
+  padding: 0 0.65rem 0.65rem;
+}
+
+.settings-header {
+  display: none;
+}
+
+.advanced-settings {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--glass-1);
+  margin-bottom: 0.55rem;
+}
+
+.advanced-section {
+  padding: 0.45rem 0.55rem 0.55rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.advanced-settings:not([open])>.advanced-section {
+  display: none;
+}
+
+/* Range sliders */
+.control {
+  display: grid;
+  gap: 0.28rem;
+  margin-bottom: 0.7rem;
+}
+
+.control span {
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+
+.control strong {
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.control input[type="range"] {
+  accent-color: var(--accent);
+  min-height: 32px;
+  height: 32px;
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Compact grid (top bar layout) */
+.compact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.compact-grid button {
+  padding: 0.5rem 0.5rem;
+}
+
+/* Checkbox toggles */
+.switch-control {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.switch-control input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Engine option rows */
+.engine-options h3 {
+  margin: 0.3rem 0 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+
+.engine-options {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 0.4rem;
+  background: var(--bg-input);
+}
+
+.engine-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.engine-option-row span {
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+}
+
+.engine-option-row input,
+.engine-option-row select {
+  padding: 0.36rem 0.46rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.73rem;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.engine-option-row input:focus,
+.engine-option-row select:focus {
+  outline: none;
+  border-color: rgba(45, 212, 191, 0.42);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.engine-option-row input[aria-invalid="true"] {
+  border-color: rgba(248, 81, 73, 0.76);
+  box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.16);
+}
+
+.panel button:disabled,
+.panel input:disabled,
+.panel select:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.engine-option-row input {
+  width: 80px;
+}
+
+.engine-option-row input[type="text"],
+.engine-option-row input[type="password"] {
+  width: min(100%, 13rem);
+}
+
+.engine-option-row select {
+  width: min(100%, 10rem);
+}
+
+.profile-picker {
+  margin-bottom: 0.3rem;
+}
+
+/* Status strip (inside settings panel area) */
+.status {
+  text-transform: capitalize;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.status::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status.loading {
+  color: var(--warning);
+}
+
+.status.loading::before {
+  background: var(--warning);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.status.ready {
+  color: var(--accent-ink);
+}
+
+.status.ready::before {
+  background: var(--accent);
+}
+
+.status.paused {
+  color: var(--text-secondary);
+}
+
+.status.paused::before {
+  background: var(--text-secondary);
+}
+
+.status.analyzing {
+  color: var(--info);
+}
+
+.status.analyzing::before {
+  background: var(--info);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+/* The AI opponent works the same way the analysis engine does. */
+.status.thinking {
+  color: var(--info);
+}
+
+.status.thinking::before {
+  background: var(--info);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+/* Off by design, not broken — and without this the status dot renders as an
+   invisible 5px gap. */
+.status.disabled {
+  color: var(--text-muted);
+}
+
+.status.disabled::before {
+  background: var(--text-muted);
+}
+
+.status.error {
+  color: var(--danger);
+}
+
+.status.error::before {
+  background: var(--danger);
+}
+
+.status.disabled,
+.status.unloaded,
+.status.standby {
+  color: var(--text-tertiary);
+}
+
+.status.disabled::before,
+.status.unloaded::before,
+.status.standby::before {
+  background: var(--text-tertiary);
+}
+
+.lazy-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--backdrop);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.lazy-dialog-panel {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: min(100%, 20rem);
+  min-height: 4.25rem;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.lazy-dialog-panel button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.lazy-dialog-spinner {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  border-top-color: var(--accent);
+  animation: lazy-dialog-spin 0.8s linear infinite;
+}
+
+@keyframes lazy-dialog-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-dot {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.3;
+    transform: scale(0.65);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Analysis inline actions
+   ═══════════════════════════════════════════════════ */
+/* Shares the row evenly, but never at the cost of the word on the button.
+   The same fix `.analysis-tab-strip` below already carries, for the same reason.
+
+   Was `grid-auto-flow: column` with `grid-auto-columns: minmax(0, 1fr)`: an equal
+   share of one row, and that share free to shrink to nothing. **Measured** at the
+   200% text size WCAG 1.4.4 asks for -- "Choose settings" wants 170px, was given
+   104px, and lost 66px of itself behind `overflow: hidden` with `text-overflow:
+   clip`. A hard edge mid-word, no ellipsis, on four buttons of the start card
+   plus Take back and Resign.
+
+   Flex with `wrap` and a content floor. `max-content` means a button is never
+   narrower than its own label; `min()` caps that at the row, so a label longer
+   than the panel cannot push the panel open; `flex: 1 1 0` shares what is left,
+   which is what the `1fr` was for. Labels that stop fitting on one line move to
+   the next instead of being cut. */
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: var(--space-md);
+}
+.inline-actions > * {
+  flex: 1 1 0;
+}
+
+/* Nothing gave these buttons padding, so the panel's primary action sat at the
+   UA default 16px — shorter than the 27px tabs above it and the smallest
+   control in the panel. */
+.inline-actions button {
+  min-height: 2rem;
+  padding: 0.4rem 0.7rem;
+  /* A flex item's own `min-width: auto` already means "never narrower than my
+     content" -- that automatic minimum is what keeps a wrapping row honest, and
+     it is all `.analysis-tab-strip` below needs. These buttons lost it because
+     `.panel button` near the top of this file replaces it with `min-width: 32px`,
+     so it is restored by name.
+
+     Here rather than on `.inline-actions > *` because `.panel button` is (0,1,1)
+     and a child selector is (0,1,0); measured with the floor there first, and all
+     six labels were still cut by exactly the same pixel counts. This selector
+     ties and comes later, so it wins.
+
+     `min-content` -- the longest single word -- and not `max-content`, the whole
+     label on one line. With `max-content` the six clipped labels were fixed and
+     "Analyze a game" / "Analysis board" started stacking at *normal* text size:
+     two words of 134px need 274px in a 272px row, so the buttons wrapped instead
+     of the text, and a row that was one line for everybody became two. Measured
+     both ways. The label is allowed to wrap inside the button now, so the floor
+     only has to hold the longest word, which leaves the row intact at every text
+     size and costs height only where height is the honest answer.
+
+     Not `auto`, which looks like the same thing and is not: a flex item's
+     automatic minimum size is its content *unless* its overflow is anything but
+     `visible`, in which case the spec makes it zero. These buttons are `overflow:
+     hidden` -- the very declaration that hides the cut label -- so `auto`
+     resolves to 0 here and holds nothing open. Measured: `min-width: auto` in the
+     bundle, computing to `auto` on the button, all six labels cut by exactly the
+     pixels they were before.
+
+     Nor `min(max-content, 100%)`, the first attempt: `min()` takes lengths and
+     percentages, not intrinsic keywords, so that declaration was invalid and
+     dropped in silence -- the same six numbers a third time. */
+  min-width: min-content;
+}
+
+/* Running analysis is a cancel action, so the button drops the emerald "go"
+   treatment while it is the stop control. */
+.analysis-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: stretch;
+}
+
+/* Wraps rather than dividing the row three ways: the touch-target padding is
+   in rem, so at 150% text a label needs more than its third and "Analyze" lost
+   its last four pixels. Identical at normal text, where all three still fit. */
+.analysis-tab-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.analysis-tab-btn {
+  flex: 1 1 auto;
+}
+
+.analysis-tab-btn {
+  min-height: 32px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  background: var(--glass-2);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.42rem 0.46rem;
+  border-radius: var(--radius-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .analysis-tab-btn:hover {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+}
+
+.analysis-tab-btn.active {
+  border-color: rgba(45, 212, 191, 0.36);
+  background: var(--accent-subtle);
+  color: var(--accent-ink);
+}
+
+.analysis-context-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.analysis-context-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.analysis-context-row .status {
+  flex-shrink: 0;
+}
+
+.analysis-mode-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+  margin-bottom: 0.5rem;
+}
+
+.analysis-experience-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin: 0.52rem 0 0.5rem;
+  padding: 0.14rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+}
+
+.analysis-experience-toggle .mode-pill {
+  flex: 1;
+  justify-content: center;
+  min-height: 32px;
+  box-sizing: border-box;
+}
+
+.coach-card {
+  container: coach / inline-size;
+  margin-bottom: var(--space-md);
+  border: 1px solid rgba(63, 185, 80, 0.22);
+  border-radius: var(--radius-md);
+  /* Tokens, not literals. The dark end of this was `rgba(17, 19, 25, 0.34)`
+     -- near-black, written when there was only one theme -- so on the light
+     one it dragged the card to a mid grey and left its own dark text at
+     3.1:1. The Coach card is the surface Coach mode exists for. `--bg-inset`
+     is the token for a well: a little black on a dark surface and a little
+     ink on a light one, which is the whole reason it is a token. */
+  background:
+    linear-gradient(180deg, var(--accent-subtle), var(--bg-inset)),
+    var(--bg-card);
+  padding: 0.68rem;
+}
+
+.coach-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.coach-grid {
+  display: grid;
+  /* Keep every reading complete at enlarged text and narrow panel widths.
+     One column is also the fallback without container-query support. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+@container coach (min-width: 13rem) {
+  .coach-grid {
+    /* Never add a third column that strands the fourth tile on its own row. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.coach-grid div {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  padding: 0.38rem 0.44rem;
+}
+
+/* The card's teal tint lifts the backdrop the way the active review row does,
+   pulling `--text-muted` under AA at this size. */
+.coach-grid span {
+  display: block;
+  margin-bottom: 0.12rem;
+  font-size: 0.58rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.coach-grid strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.coach-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.coach-insight {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.coach-tags,
+.coach-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.coach-tags {
+  margin-bottom: 0.42rem;
+}
+
+.coach-tags span,
+.coach-metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: 0.18rem 0.42rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--glass-3);
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.coach-tags span {
+  border-color: rgba(45, 212, 191, 0.24);
+  color: var(--accent-ink);
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.coach-metrics {
+  margin-top: 0.45rem;
+}
+
+.coach-metrics span {
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+.coach-card .coach-opening {
+  margin-top: 0.38rem;
+  color: var(--text-tertiary);
+}
+
+.coach-opening strong {
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  margin-right: 0.2rem;
+}
+
+.tablebase-card {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.62rem;
+}
+
+.tablebase-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tablebase-move-list {
+  display: grid;
+  gap: 0.3rem;
+}
+
+/* Element+class so `display: grid` survives `.panel button`'s inline-flex,
+   which was leaving the column template inert and the rows ragged. */
+button.tablebase-move-row {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  display: grid;
+  grid-template-columns: minmax(3rem, 0.7fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: 0.42rem;
+  text-align: left;
+  padding: 0.3rem 0.45rem;
+}
+
+/* Coach view keeps the move and the verdict. The raw UCI is already the row's
+   tooltip, and it stays visible in Pro — same split as the review list. */
+button.tablebase-move-row.compact {
+  grid-template-columns: minmax(3rem, 0.7fr) minmax(0, 1fr);
+}
+
+.tablebase-move-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.tablebase-move-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tablebase-move-row span:last-child {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.38rem;
+  margin-bottom: 0.55rem;
+}
+
+/* `.panel button` sets inline-flex/centre alignment at a higher specificity, so
+   the intended stack never applied and each ~142px card split its title and
+   description into two ~65px columns — "Deep Candidate Search" over three
+   lines. Scoped to the grid so it outranks that rule. */
+.preset-grid .preset-card {
+  text-align: left;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.48rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.16rem;
+}
+
+.preset-card strong {
+  font-size: 0.68rem;
+  color: var(--text-primary);
+}
+
+.preset-card span {
+  font-size: 0.63rem;
+  color: var(--text-muted);
+}
+
+.preset-card.active {
+  border-color: var(--accent-muted);
+  background: rgba(88, 166, 255, 0.12);
+}
+
+/* Choosing a preset must not make its own description harder to read. The
+   selected card swaps a dark fill for a blue wash, which on the dark theme
+   lifts the ground toward the muted grey underneath: measured 4.62:1 on an
+   idle card and 4.14:1 on the selected one, at 10px. One rung up the ladder
+   on the selected card only, which reads 5.58 there and gains on the light
+   theme too, where the same wash darkens rather than lightens. */
+.preset-card.active span {
+  color: var(--text-tertiary);
+}
+
+.mode-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--glass-2);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+}
+
+.mode-pill.active {
+  border-color: rgba(45, 212, 191, 0.4);
+  background: var(--accent-subtle);
+  color: var(--accent-ink);
+}
+
+.command-summary {
+  margin: -0.18rem 0 0.45rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.opening-intel-card {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.62rem;
+}
+
+.opening-intel-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.opening-intel-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+/* These text fields need their own row in a narrow panel. An intrinsic-width
+   input beside a zero-minimum label can otherwise paint over the label when
+   text is enlarged, even though the document reports no horizontal overflow. */
+.opening-intel-card .engine-option-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.opening-intel-card .engine-option-row :is(input, select) {
+  width: 100%;
+  min-width: 0;
+}
+
+.opening-source-toggle,
+.opening-speed-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.opening-speed-toggle {
+  margin-bottom: 0.45rem;
+}
+
+.opening-token-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: -0.18rem 0 0.5rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.opening-token-meta a {
+  color: var(--info);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .opening-token-meta a:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+}
+
+.opening-move-list {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.45rem;
+}
+
+button.opening-move-row {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: left;
+  padding: 0.26rem 0.4rem;
+}
+
+.opening-move-row strong {
+  color: var(--text-primary);
+}
+
+.opening-move-row span:last-child {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.cloud-eval-card {
+  margin-bottom: var(--space-md);
+  border: 1px solid rgba(88, 166, 255, 0.22);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.62rem;
+}
+
+.cloud-eval-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cloud-line-list {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.cloud-line-row {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  padding: 0.42rem 0.5rem;
+}
+
+.cloud-line-row header {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: baseline;
+  font-size: 0.71rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.22rem;
+}
+
+.cloud-line-row header strong {
+  color: var(--info);
+  font-weight: 700;
+}
+
+.cloud-line-row header span:last-child {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.cloud-line-row p {
+  margin: 0;
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.cloud-line-row p.pv-uci {
+  margin-top: 0.18rem;
+  font-size: 0.63rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+.engine-command-inline {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.16rem 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42%;
+}
+
+.engine-telemetry-inline {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  padding: 0.16rem 0.35rem;
+  white-space: nowrap;
+}
+
+.engine-lab-card {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.62rem;
+}
+
+.engine-lab-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.engine-lab-card .command-summary {
+  overflow-wrap: anywhere;
+}
+
+.engine-lab-console {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.engine-lab-console input {
+  flex: 1 0 100%;
+  min-width: 0;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.engine-lab-console button {
+  flex: 1 1 calc(50% - 0.175rem);
+  min-width: min-content;
+}
+
+.diagnostics-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 0.45rem;
+}
+
+.expert-toggle {
+  margin-top: 0.2rem;
+}
+
+/* `.panel-copy.small` and `.command-summary` are two-class selectors, so a bare
+   `.warning-copy` lost the cascade and every warning in the app rendered in the
+   same muted grey as ordinary copy. */
+.warning-copy,
+.panel-copy.warning-copy {
+  color: var(--warning);
+}
+
+.danger-lite {
+  border-color: rgba(248, 81, 73, 0.35) !important;
+  color: var(--danger) !important;
+}
+
+.danger-lite:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lab-history {
+  margin-bottom: 0.45rem;
+}
+
+.lab-history h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.61rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.lab-history-list {
+  display: flex;
+  gap: 0.28rem;
+  flex-wrap: wrap;
+}
+
+.lab-history-list button {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.64rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.engine-lab-output {
+  margin: 0;
+  /* Lines of a log, so it is measured in the reader's line and not in pixels
+     fixed at one text size. Same figures at 100%; more of the log at 200%,
+     where a box that stayed 140px tall showed half as much of it. */
+  min-height: 8.75rem;
+  max-height: 16.25rem;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: #0c1118;
+  color: #c7d2df;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  padding: 0.45rem 0.5rem;
+  font-family: var(--font-mono);
+}
+
+.engine-lab-inline {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.error-copy,
+.panel-copy.error-copy {
+  color: var(--danger);
+}
+
+/* ═══════════════════════════════════════════════════
+   Right panel sections
+   ═══════════════════════════════════════════════════ */
+.right-section {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.right-section h3,
+.review-scaffold h3,
+.pv-list h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.section-icon {
+  font-size: 0.8rem;
+  opacity: 0.5;
+  line-height: 1;
+}
+
+.analyze-move-card .mtree-scroll {
+  height: 11.25rem;
+}
+
+/* ═══════════════════════════════════════════════════
+   Engine PV lines
+   ═══════════════════════════════════════════════════ */
+.pv-list {
+  margin-top: var(--space-md);
+  /* Room for the engine's lines, in lines. */
+  min-height: 15.625rem;
+}
+
+.pv-list article {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.35rem;
+  background: var(--bg-card);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+  cursor: default;
+}
+
+.pv-list article,
+.cloud-line-row,
+.moves-list li,
+.mtree-row,
+.mtree-variation {
+  contain: layout paint style;
+  content-visibility: auto;
+}
+
+.pv-list article,
+.cloud-line-row {
+  contain-intrinsic-size: auto 92px;
+}
+
+.moves-list li,
+.mtree-row,
+.mtree-variation {
+  contain-intrinsic-size: auto 36px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pv-list article:hover {
+    border-color: var(--border-default);
+    background: var(--bg-card-hover);
+  }
+}
+
+.pv-list article header {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: baseline;
+  font-size: 0.71rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.25rem;
+}
+
+.pv-list article header strong {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.pv-list article header span:last-child {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.pv-list article p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+/* A principal variation the reader can step into. Each move is a button, but
+   the row has to keep reading as a line of chess rather than as a toolbar, so
+   the buttons drop `.panel button`'s chip shape and take it back on hover.
+   Element+class to clear that rule at equal specificity, the way
+   `button.tablebase-move-row` does below. */
+.pv-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.05rem 0.1rem;
+  align-items: baseline;
+}
+
+button.pv-move {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.1rem 0.22rem;
+  border-radius: var(--radius-sm);
+  line-height: 1.45;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.pv-move:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-subtle);
+    color: var(--text-heading);
+  }
+}
+
+button.pv-move:focus-visible {
+  border-color: var(--border-strong);
+  color: var(--text-heading);
+}
+
+/* A finger needs more than a line of text is tall. */
+@media (pointer: coarse) {
+  button.pv-move {
+    padding: 0.3rem 0.4rem;
+  }
+}
+
+/* One rung above the quietest text, because these sit inside a button on the
+   Lines panel rather than on the panel itself, and that ground is lighter than
+   the one `--text-muted` was measured against: 3.51:1 in the dark theme at the
+   narrow layout, where the panel is full width. The same trade the preset card
+   and the time control make. */
+.pv-move-number {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  margin-right: 0.1rem;
+}
+
+/* The Coach card sets its own line colour and size on <p>; the moves inside it
+   are buttons, which do not inherit either. */
+.coach-line-moves {
+  margin: 0.35rem 0 0;
+}
+
+.pv-list article p.pv-uci {
+  margin-top: 0.18rem;
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+.best-move {
+  margin: 0.45rem 0 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ═══════════════════════════════════════════════════
+   Review summary chips
+   ═══════════════════════════════════════════════════ */
+.review-scaffold {
+  margin-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-md);
+}
+
+.review-book-card {
+  margin-top: var(--space-md);
+}
+
+.review-book-token-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 34px;
+  margin: 0.15rem 0 0.55rem;
+}
+
+.critical-moments-card {
+  margin-top: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.62rem;
+}
+
+.critical-moments-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.critical-moment-list {
+  display: grid;
+  gap: 0.34rem;
+}
+
+button.critical-moment-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.42rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid transparent;
+  background: var(--bg-card);
+}
+
+.panel .critical-moment-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel .critical-moment-main:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.panel .critical-moment-main:focus-visible,
+.panel .critical-moment-best-action:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+.panel .critical-moment-best-action {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: 1.95rem;
+  padding: 0.32rem 0.48rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--info) 42%, var(--border-subtle));
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+  color: var(--info);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.panel .critical-moment-best-action:hover {
+  background: color-mix(in srgb, var(--info) 16%, transparent);
+}
+
+.panel .critical-moment-best-action svg {
+  width: 0.74rem;
+  height: 0.74rem;
+  flex: 0 0 auto;
+}
+
+.critical-moment-move {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.critical-moment-move strong {
+  color: var(--text-primary);
+  font-size: 0.76rem;
+}
+
+.critical-moment-move span,
+.critical-moment-impact {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.critical-moment-impact {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.critical-moment-best {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: var(--info);
+  font-size: 0.68rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-book-list {
+  display: grid;
+  gap: 0.28rem;
+  /* Allocate space for 14 rows mapping so the UI below doesn't jump -- and
+     fourteen rows is fourteen of the reader's rows, not of a 16px reader's, or
+     the space stops matching the thing it was reserved for and the UI jumps
+     again at any other text size. */
+  min-height: 25rem;
+  align-content: start;
+}
+
+.review-book-list:empty {
+  min-height: 0;
+}
+
+.review-book-row {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  padding: 0.22rem 0.4rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.review-book-row span:first-child {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.review-book-row strong {
+  color: var(--text-primary);
+}
+
+.review-book-row.in-book {
+  border-color: rgba(63, 185, 80, 0.28);
+}
+
+.review-book-row.out-of-book {
+  border-color: rgba(240, 136, 62, 0.32);
+}
+
+.review-book-row.after-novelty {
+  opacity: 0.62;
+}
+
+.review-book-row.loading {
+  opacity: 0.72;
+}
+
+.review-book-row.error {
+  border-color: rgba(248, 81, 73, 0.36);
+  background: rgba(248, 81, 73, 0.08);
+}
+
+.review-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+  margin: -0.12rem 0 0.52rem;
+}
+
+.accuracy-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.6rem, 1fr));
+  gap: 0.38rem;
+  margin-bottom: 0.48rem;
+}
+
+.accuracy-summary div {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  /* The same dark-theme literal, in the tile beside it; see `.coach-card`. */
+  background:
+    linear-gradient(180deg, var(--accent-subtle), var(--bg-inset)),
+    var(--bg-card);
+  padding: 0.48rem 0.5rem;
+}
+
+.accuracy-summary span {
+  display: block;
+  margin-bottom: 0.14rem;
+  color: var(--text-tertiary);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.accuracy-summary strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+@media (max-width: 520px) {
+  .accuracy-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Pro mode has five tiles; on two columns the fifth sat alone on a row
+     half the width of the others. */
+  .accuracy-summary>div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* The players' names ellipsize to a stray "C." beside the result at this
+     width. The result is the fact the strip is there for; the names are in
+     the library row and the PGN headers. */
+  .board-meta-game>span {
+    display: none;
+  }
+}
+
+.review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+/* Reads as the caption to the chips above it, because that is what it is. */
+.review-chip-notes {
+  margin: 0.3rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.review-chips span {
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-size: 0.67rem;
+  font-weight: 600;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .review-chips span:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Stepping through the faults the review found, under the counts that say how
+   many there are. A 44px minimum on the two buttons, like every other control
+   a phone has to hit. */
+/* The count reads above the buttons rather than between them. Between them is
+   tidier and does not survive a narrow panel: with the count holding a fixed
+   width the two buttons were squeezed to their icons and the row still spilled
+   28px past a 200px panel -- the only row in this panel that did. Stacked, the
+   buttons get the whole width and the label above them has as much as it
+   needs. */
+.review-jump-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.1rem;
+}
+
+.review-jump-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* Only what `.panel button` does not already set. It is (0,1,1) and this is
+   (0,1,0), so every property the two share -- the flex box, min-height,
+   min-width, padding, font-size -- belongs to it, and declaring them here
+   just reads as though they were in force. */
+.review-jump-btn {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Through the row, which wins at (0,2,0). Scoping is the point rather than a
+   style: `.panel button` pins `min-height: 32px` on everything in a panel, so
+   the `(pointer: coarse)` rule below was overridden and did nothing -- the two
+   buttons stayed 32px on a phone, under the 44px the toolbar's own controls
+   take and the browser harness enforces for them. Same move
+   `.top .compact-grid .mobile-actions button` makes for those. */
+.review-jump-actions .review-jump-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.review-jump-btn svg {
+  width: 0.85em;
+  height: 0.85em;
+  flex: none;
+}
+
+.review-jump-count {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .review-jump-actions .review-jump-btn {
+    min-height: 2.75rem;
+  }
+}
+
+/* Narrative tags describing the shape of a game, beside the quality counts. */
+.chip-narrative {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-color: var(--border-default) !important;
+}
+
+.chip-narrative-good {
+  background: rgba(63, 185, 80, 0.12);
+  color: var(--quality-best);
+  border-color: rgba(63, 185, 80, 0.22) !important;
+}
+
+.chip-narrative-bad {
+  background: rgba(248, 81, 73, 0.12);
+  color: var(--quality-blunder);
+  border-color: rgba(248, 81, 73, 0.22) !important;
+}
+
+.chip-book {
+  background: rgba(203, 213, 225, 0.1);
+  color: var(--quality-book);
+  border-color: rgba(203, 213, 225, 0.2) !important;
+}
+
+.chip-best,
+.chip-excellent {
+  background: rgba(63, 185, 80, 0.12);
+  color: var(--quality-best);
+  border-color: rgba(63, 185, 80, 0.22) !important;
+}
+
+.chip-good {
+  background: rgba(126, 231, 135, 0.1);
+  color: var(--quality-good-ink);
+  border-color: rgba(126, 231, 135, 0.18) !important;
+}
+
+.chip-inaccuracy {
+  background: rgba(227, 179, 65, 0.12);
+  color: var(--quality-inaccuracy);
+  border-color: rgba(227, 179, 65, 0.22) !important;
+}
+
+.chip-mistake {
+  background: rgba(240, 136, 62, 0.12);
+  color: var(--quality-mistake);
+  border-color: rgba(240, 136, 62, 0.22) !important;
+}
+
+/* Lifted off the shared quality tokens, which also colour the move-tree dots
+   where a dot's 3:1 applies rather than this text's 4.5. The first attempt
+   moved these two onto `--danger` and `--text-muted` and stopped just short:
+   measured on their own tints they came out at 4.41:1 and 4.49:1, which is
+   under AA by a hair in both cases and under it in the light theme by more.
+   They have their own inks now; see the block in index.css. */
+.chip-blunder {
+  background: rgba(248, 81, 73, 0.12);
+  color: var(--quality-blunder-ink);
+  border-color: rgba(248, 81, 73, 0.22) !important;
+}
+
+.chip-pending {
+  background: rgba(110, 118, 129, 0.1);
+  color: var(--quality-pending-ink);
+  border-color: rgba(110, 118, 129, 0.18) !important;
+}
+
+/* ═══════════════════════════════════════════════════
+   Move list
+   ═══════════════════════════════════════════════════ */
+.moves-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* Without this the column flex shrinks every row to fit the 220px box: a
+   190-move game rendered each 22px row as a 2px sliver stacked on the next. */
+.moves-list>li {
+  flex: 0 0 auto;
+}
+
+.moves-list li {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid transparent;
+  background: var(--bg-card);
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+  animation: move-fade-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.review-move-list li {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Pro view carries seven things per row. Seven columns did not fit the 285px
+   panel: the UCI was handed a 0px track and the row still overflowed by 26px,
+   so the trailing verdict was clipped off. Two lines fit all of it. */
+.review-move-row {
+  width: 100%;
+  display: grid !important;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  /* The clock is one column spanning both rows: it belongs to the move rather
+     than to either half of it, and a track with nothing in it collapses, so a
+     game with no clock reads exactly as it did. */
+  grid-template-areas:
+    "index san uci clock quality"
+    "index best impact clock confidence";
+  gap: 0.32rem;
+  row-gap: 0.16rem;
+  align-items: center;
+  padding: 0.32rem 0.48rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  text-align: left;
+  box-shadow: none !important;
+}
+
+/* Coach view drops the raw UCI and the search depth, matching how the Lines
+   panel hides them. The five that remain fit one line. */
+.review-move-row.compact {
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "index san best impact clock quality";
+}
+
+.review-move-row .move-index {
+  grid-area: index;
+  align-self: start;
+}
+
+.review-move-row strong {
+  grid-area: san;
+}
+
+.review-move-row .move-uci {
+  grid-area: uci;
+}
+
+.review-move-row .move-best {
+  grid-area: best;
+  min-width: 0;
+}
+
+.review-move-row .move-impact {
+  grid-area: impact;
+}
+
+.review-move-row .move-confidence {
+  grid-area: confidence;
+}
+
+.review-move-row .move-quality {
+  grid-area: quality;
+  align-self: center;
+}
+
+.review-move-row.active {
+  background: rgba(63, 185, 80, 0.09) !important;
+}
+
+/* The active row's tint lifts the backdrop enough to pull `--text-muted` under
+   AA, so its secondary columns step up one tier. */
+.review-move-row.active .move-index,
+.review-move-row.active .move-impact,
+.review-move-row.active .move-confidence,
+.review-move-row.active .move-uci {
+  color: var(--text-secondary) !important;
+}
+
+.review-move-row:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+@media (max-width: 900px) {
+  .panel .review-move-row {
+    min-height: 44px;
+    padding: 0.5rem 0.58rem;
+  }
+}
+
+.move-best {
+  min-width: 0;
+  color: var(--info);
+  font-size: 0.66rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .review-move-row {
+    grid-template-areas:
+      "index san uci quality"
+      "index best best quality"
+      "index impact confidence quality";
+  }
+
+  .review-move-row.compact {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "index san san quality"
+      "index best best quality"
+      "index impact impact quality";
+  }
+}
+
+@keyframes move-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .moves-list li:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-default);
+  }
+}
+
+.moves-list li span {
+  font-size: 0.71rem;
+  color: var(--text-secondary);
+}
+
+.moves-list li strong {
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.move-index {
+  min-width: 1.5rem;
+  color: var(--text-muted) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.move-uci {
+  font-family: var(--font-mono);
+  /* Was `opacity: 0.5`, which halved `--text-secondary` to 3:1 across every row
+     in the list. A dim colour reads the same and clears AA. */
+  color: var(--text-muted) !important;
+  font-size: 0.66rem !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.move-impact {
+  font-family: var(--font-mono);
+  color: var(--text-muted) !important;
+  font-size: 0.66rem !important;
+  white-space: nowrap;
+}
+
+.move-confidence {
+  color: var(--text-muted) !important;
+  font-size: 0.64rem !important;
+  white-space: nowrap;
+}
+
+.confidence-shallow {
+  color: var(--warning) !important;
+}
+
+.confidence-deep {
+  color: var(--accent-ink) !important;
+}
+
+.move-quality {
+  text-transform: capitalize;
+  justify-self: end;
+  font-weight: 600 !important;
+  font-size: 0.66rem !important;
+  white-space: nowrap;
+}
+
+/* Quality-colored left borders */
+.quality-book {
+  border-left-color: var(--quality-book) !important;
+}
+
+.quality-book .move-quality {
+  color: var(--quality-book);
+}
+
+.quality-best,
+.quality-excellent {
+  border-left-color: var(--quality-best) !important;
+}
+
+.quality-best .move-quality,
+.quality-excellent .move-quality {
+  color: var(--quality-best);
+}
+
+.quality-good {
+  border-left-color: var(--quality-good) !important;
+}
+
+/* The word, not the border above it: same split as the review chips. A border
+   is not read and keeps the dot palette; the grade spelled out at 10.6px has
+   AA to clear, and light's Good reads 3.76:1 on a review row without this. */
+.quality-good .move-quality {
+  color: var(--quality-good-ink);
+}
+
+.quality-inaccuracy {
+  border-left-color: var(--quality-inaccuracy) !important;
+}
+
+.quality-inaccuracy .move-quality {
+  color: var(--quality-inaccuracy);
+}
+
+.quality-mistake {
+  border-left-color: var(--quality-mistake) !important;
+}
+
+.quality-mistake .move-quality {
+  color: var(--quality-mistake);
+}
+
+.quality-blunder {
+  border-left-color: var(--quality-blunder) !important;
+}
+
+.quality-blunder .move-quality {
+  color: var(--quality-blunder-ink);
+}
+
+/* ═══════════════════════════════════════════════════
+   Winrate graph
+   ═══════════════════════════════════════════════════ */
+.analytics-card,
+.sample-library-card,
+.opening-intel-card,
+.cloud-eval-card,
+.engine-lab-card,
+.critical-moments-card,
+.tablebase-card {
+  box-shadow: inset 0 1px 0 var(--glass-2);
+}
+
+.analytics-card {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.55rem;
+}
+
+.section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+/*
+ * These are `h2` because of where they sit, not how they look.
+ *
+ * The left column's cards were `h3` with no `h2` anywhere above them, so the
+ * document went h1 straight to h3 and the three cards belonged to nothing --
+ * a reader moving by heading met an orphan. They are top-level sections of the
+ * page, peers of the analysis panel's own `h2`, so that is the level they take.
+ * The size and weight here are unchanged; only the tag is.
+ */
+.section-heading h2 {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-tertiary);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.section-heading strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-wrap {
+  width: 100%;
+  border: 1px solid var(--glass-3);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  padding: 0.4rem;
+  overflow: hidden;
+}
+
+.graph-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.winrate-graph {
+  width: max-content;
+  min-width: 100%;
+  height: var(--graph-height);
+  display: block;
+}
+
+.winrate-graph[role="slider"]:focus-visible {
+  outline-offset: -3px;
+}
+
+.graph-grid-line {
+  stroke: var(--graph-grid);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.graph-grid-text {
+  font-size: 13px;
+  fill: var(--text-secondary);
+  font-family: inherit;
+}
+
+/* The tick marks under the axis and the dashed line marking where in the game
+   you are. Both were inline `stroke` attributes carrying dark-theme literals,
+   so on a light card they measured 1.01:1 and 1.11:1 -- the second being the
+   graph's main affordance. Non-text, so the contrast sweep cannot see them;
+   found by reading the component. */
+.graph-tick-line {
+  stroke: var(--graph-axis);
+  stroke-width: 1;
+}
+
+.graph-cursor-line {
+  stroke: var(--graph-cursor);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+
+/* The pointer's ply, and what the graph knows about it. The stroke behind the
+   text is what keeps it legible over the curve and the gridlines. */
+.graph-hover-line {
+  stroke: var(--graph-axis);
+  stroke-width: 1;
+}
+
+.graph-readout {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  font-family: inherit;
+  paint-order: stroke;
+  stroke: var(--bg-elevated);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.graph-area {
+  fill: url(#graph-gradient);
+}
+
+.graph-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.graph-line-white {
+  stroke: var(--graph-white);
+  filter: drop-shadow(0 0 3px var(--graph-white-glow));
+}
+
+.graph-line-draw {
+  stroke: var(--graph-draw);
+  stroke-dasharray: 4 3;
+  filter: drop-shadow(0 0 3px rgba(255, 184, 108, 0.3));
+}
+
+.graph-line-black {
+  stroke: var(--graph-black);
+  filter: drop-shadow(0 0 3px rgba(88, 166, 255, 0.35));
+}
+
+.graph-bar-white {
+  fill: var(--graph-white);
+  opacity: 0.9;
+}
+
+.graph-bar-black {
+  fill: var(--graph-black);
+  opacity: 0.9;
+}
+
+.graph-point {
+  fill: var(--accent);
+  stroke: var(--bg-base);
+  stroke-width: 1.3;
+}
+
+.graph-point-white {
+  fill: var(--graph-white);
+}
+
+.graph-point-draw {
+  fill: var(--graph-draw);
+}
+
+.graph-point-black {
+  fill: var(--graph-black);
+}
+
+.graph-legend {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.graph-legend span {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.graph-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.graph-legend strong {
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-legend.wdl {
+  justify-content: flex-start;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.graph-legend.wdl span {
+  gap: 0.36rem;
+}
+
+.graph-legend.wdl span::before {
+  width: 10px;
+  height: 3px;
+}
+
+.graph-legend .wdl-white-label::before {
+  background: var(--graph-white);
+}
+
+.graph-legend .wdl-draw-label::before {
+  background: var(--graph-draw);
+}
+
+.graph-legend .wdl-black-label::before {
+  background: var(--graph-black);
+}
+
+.sample-library-card {
+  margin-top: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.52rem;
+}
+
+.sample-library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.sample-library-head h2 {
+  margin: 0;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sample-library-head span {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.sample-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  margin-bottom: 0.45rem;
+}
+
+.sample-game-list {
+  display: grid;
+  gap: 0.36rem;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.sample-game-row {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  padding: 0.36rem 0.44rem;
+}
+
+.sample-game-row header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.42rem;
+  align-items: baseline;
+  margin-bottom: 0.16rem;
+}
+
+.sample-game-row header strong {
+  font-size: 0.7rem;
+  color: var(--text-primary);
+}
+
+.sample-game-row header span {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.sample-game-row p {
+  margin: 0 0 0.2rem;
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.sample-game-row p.sample-game-opening {
+  color: var(--text-muted);
+}
+
+.sample-sweep-copy {
+  margin: 0 0 0.45rem;
+  color: var(--text-muted);
+}
+
+/* Format, result and the load button share the row: a full-width button on a
+   line of its own cost a fifth of every card in a list you scroll. */
+.sample-game-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.42rem;
+  margin-top: 0.24rem;
+}
+
+.sample-game-actions p {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sample-game-actions button {
+  flex: none;
+  font-size: 0.66rem;
+  padding: 0.24rem 0.6rem;
+}
+
+/* ═══════════════════════════════════════════════════
+   Empty state
+   ═══════════════════════════════════════════════════ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+  gap: var(--space-sm);
+}
+
+.empty-state-icon {
+  font-size: 1.6rem;
+  opacity: 0.18;
+  line-height: 1;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+  line-height: 1.55;
+  max-width: 200px;
+}
+
+.review-empty-state {
+  padding: var(--space-lg) var(--space-sm);
+}
+
+/* ═══════════════════════════════════════════════════
+   Analyzing bar (bottom progress)
+   ═══════════════════════════════════════════════════ */
+.analyzing-bar {
+  width: 100%;
+  height: 2px;
+  background: var(--border-subtle);
+  overflow: hidden;
+  border-radius: 1px;
+  position: relative;
+}
+
+.analyzing-bar.active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: analyzing-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes analyzing-slide {
+  0% {
+    left: -40%;
+  }
+
+  100% {
+    left: 100%;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Game mode & game-over badges
+   ═══════════════════════════════════════════════════ */
+@keyframes badge-pop {
+  from {
+    transform: scale(0.75);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  :root {
+    --stage-pad-x: 0.5rem;
+    --stage-pad-y: 0.35rem;
+    --board-frame: 0.25rem;
+  }
+
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+    /* Not `100vw`: that measures the viewport including a classic scrollbar,
+       which is a few pixels more room than the shell actually has. */
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .main-container {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* A header row whose whole content is the word already lit in the tab pills
+     directly above it. Measured at 375x812 it cost 41px of the ~120 the panel
+     has under the board, which was the difference between the Start card's
+     button being whole and being cut across. The heading stays in the
+     accessibility tree, the way the brand does, because it is what says where
+     this panel begins. */
+  .panel-header-title-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+    border: 0;
+  }
+
+  .top {
+    position: relative !important;
+    top: auto !important;
+    order: 0;
+  }
+
+  .eval-bar-label {
+    left: 0;
+  }
+
+  .board-stage {
+    order: 1;
+    padding: var(--stage-pad-y) var(--stage-pad-x);
+    min-height: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    flex: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Board size driven by JS boardWidth (≈46% viewport height) */
+    background: var(--bg-base);
+  }
+
+  .board-layout {
+    gap: 0.3rem;
+  }
+
+  .board-meta-strip {
+    min-height: 1.85rem;
+    padding: 0.22rem 0.38rem;
+    font-size: 0.68rem;
+  }
+
+  /* Six readings and a control do not fit a 375px row, and at 320px they do
+     not come close. Left to shrink, a flex row takes the width out of whichever
+     item gives it up: the result of an imported game was drawn as "·0" at
+     375px, and at 320px both it and a button were 0px wide. The readings keep
+     their own widths and the row scrolls, which is the same trade the top bar
+     makes above it -- and the trailing fade is what says so. */
+  .board-meta-flow {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    /* Two pixels a gap, which is what the clock was short by at 320px: with
+       the desktop's 0.5rem it ended 4px past the edge and a blitz player read
+       a faded last digit. */
+    gap: 0.38rem;
+    /* No snapping, and no anchoring. Both exist to hold a position across a
+       change, and every change to this row is a pill appearing or leaving --
+       so both of them held the wrong thing. Snapped, the row re-snapped to
+       whatever it had last snapped to, and a 3+2 game at 320px opened already
+       52px along with the clock half off the left edge. There is nothing here
+       to hold: five readings, and the one that matters is at the start. */
+    scroll-snap-type: none;
+    overflow-anchor: none;
+  }
+
+  /* Both sideways strips wear the same edges. See `--edge-lead` above.
+
+     The mask is written so that the values a browser with no scroll timelines
+     leaves in place -- no fade at the start, a fade at the end -- are exactly
+     what this used to draw unconditionally. Nothing is lost there; the two
+     edges only start moving where something can move them. */
+  .top .mobile-modes-wrapper,
+  .top .mobile-actions,
+  .board-meta-flow {
+    --edge-w: 1.25rem;
+    /* What a browser with no scroll timelines draws: the static trailing fade
+       this used to have, unconditionally. */
+    --edge-lead: 0;
+    --edge-trail: 1;
+    mask-image: linear-gradient(to right,
+        rgba(0, 0, 0, calc(1 - var(--edge-lead))) 0,
+        #000 var(--edge-w),
+        #000 calc(100% - var(--edge-w)),
+        rgba(0, 0, 0, calc(1 - var(--edge-trail))) 100%);
+    -webkit-mask-image: linear-gradient(to right,
+        rgba(0, 0, 0, calc(1 - var(--edge-lead))) 0,
+        #000 var(--edge-w),
+        #000 calc(100% - var(--edge-w)),
+        rgba(0, 0, 0, calc(1 - var(--edge-trail))) 100%);
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .top .mobile-modes-wrapper,
+    .top .mobile-actions,
+    .board-meta-flow {
+      /* Neither edge, until the scroll position says otherwise. A strip whose
+         items all fit has no timeline to run, so the animations contribute
+         nothing and this is what is left -- which is the right answer for a
+         row with nothing to scroll to, and the one the old fade got wrong. */
+      --edge-trail: 0;
+      animation: edge-lead-in linear both, edge-trail-out linear both;
+      animation-timeline: scroll(self inline), scroll(self inline);
+      animation-range: 0 1.25rem, calc(100% - 1.25rem) 100%;
+    }
+  }
+
+  .board-meta-flow::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Nothing in the row gives up width any more; the row gives up its end. */
+  .board-meta-flow>* {
+    flex: none;
+  }
+
+  /* The two that were written to absorb the squeeze have nothing left to
+     absorb: the row is longer than the strip and scrolls. Still the first
+     things to leave the screen, but whole, and reachable by scrolling rather
+     than drawn as a fragment of themselves. */
+  .board-meta-flow>.board-meta-game,
+  .board-meta-flow>.board-meta-practice {
+    flex: none;
+  }
+
+  /* Ordered by what a reader cannot play without, because the row is longer
+     than the strip and the end of it is a scroll away.
+
+     The clock goes first with the turn pill, ahead of the move number, and
+     that ordering is the whole point of this block: in a 3+2 game at 375px the
+     clock sat at 167..277 in a 276px window and at 320px half of it was off
+     the screen, behind a move number the move list gives anyway. A clock you
+     have to scroll to is not a clock.
+
+     Then the readings about the position, then the two the strip can most
+     afford to lose -- an imported game's players are in the tab's title and in
+     the panel, and its result is in the turn pill once the game is over. */
+  /* Ahead of everything, including whose move it is -- which the running face
+     of the clock says too, and which tolerates a faded last letter where a
+     seconds digit does not. First, the clock ended 4px past the edge at 320px
+     with another 20 inside the fade; here it starts at 0 and is crisp to the
+     last digit at every width. */
+  .board-meta-flow>.chess-clock {
+    order: -1;
+  }
+
+  /* With the clock, ahead of the move number: while a drill is running it is
+     the reading the reader is acting on. */
+  .board-meta-flow>.board-meta-drill {
+    order: 0;
+  }
+
+  .board-meta-flow>.board-meta-move {
+    order: 1;
+  }
+
+  .board-meta-flow>.board-meta-opening {
+    order: 2;
+  }
+
+  .board-meta-flow>.board-meta-material {
+    order: 3;
+  }
+
+  .board-meta-flow>.board-meta-game {
+    order: 4;
+    max-width: 11rem;
+  }
+
+  /* Narrower than it would like: at its full 13rem the opening was longer than
+     the rest of the row put together and pushed everything after it out of
+     sight. Cut here it still says which opening -- "C95 Ruy Lopez: Cl..." --
+     which is the part a reader wants from it, and the whole name is a scroll
+     away, in the panel, and in the title. */
+  .board-meta-opening {
+    max-width: 8.5rem;
+  }
+
+  /* The last place the strip still repeated the status. It is already hidden
+     on a desktop and on a phone on its side, both because the panel header and
+     the bottom bar state it beside each other, and in Play mode here, where it
+     had pushed the quality pill off the right edge -- "Human vs Human · EXCEL"
+     with the rest clipped. That left Analysis in portrait, where the panel
+     header sits directly under the board saying it with a coloured dot and a
+     capital letter, and scrolls with the strip rather than staying put, so the
+     strip's copy buys no availability either. Fifty-nine pixels, which is what
+     the row needed to fit a 320px phone. */
+  .board-meta-status {
+    display: none;
+  }
+
+  .board-meta-practice button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .opening-pill {
+    padding: 0.18rem 0.5rem;
+    gap: 0.35rem;
+    font-size: 0.68rem;
+    line-height: 1.1;
+  }
+
+  .opening-pill strong {
+    padding: 0.08rem 0.38rem;
+    font-size: 0.68rem;
+  }
+
+  .right {
+    order: 3;
+    padding: 0 var(--space-sm) calc(4.5rem + env(safe-area-inset-bottom)) !important;
+    width: 100% !important;
+    height: auto;
+    align-self: stretch;
+  }
+
+  .left {
+    order: 4;
+    padding: 0 var(--space-sm) calc(5rem + env(safe-area-inset-bottom)) !important;
+    width: 100% !important;
+    height: auto;
+    align-self: stretch;
+  }
+
+  .panel.panel-collapsed {
+    display: none !important;
+  }
+
+  .left .panel-inner,
+  .right .panel-inner {
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--border-default) !important;
+    box-shadow: var(--shadow-sm) !important;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .left .panel-content,
+  .right .panel-content {
+    overflow: visible;
+  }
+
+  .right .analysis-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "title context"
+      "tabs tabs";
+    align-items: center;
+    gap: 0.35rem 0.55rem;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .right .analysis-header h2 {
+    grid-area: title;
+  }
+
+  .right .analysis-tab-strip {
+    grid-area: tabs;
+    min-width: 0;
+  }
+
+  .right .analysis-context-row {
+    grid-area: context;
+    justify-content: flex-end;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .bottom {
+    position: relative !important;
+    bottom: auto !important;
+    order: 2;
+    width: 100% !important;
+    overflow-x: hidden;
+    background: var(--bg-inset);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    z-index: 200;
+  }
+
+  .top .panel-inner {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .top .panel-content {
+    padding: 0.35rem 0.5rem;
+  }
+
+  .top .compact-grid {
+    display: grid;
+    /* No brand column: the <h1> is visually hidden on phones (see the
+       `.top .app-brand` rule), so a third column only bought an empty gap. */
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "actions settings"
+      "modes modes";
+    align-items: center;
+    gap: 0.4rem;
+    overflow-x: visible;
+  }
+
+  /* Centred while the five buttons fit, and no wider than its column when they
+     do not. They grow with the reader's text size, and `justify-self: center`
+     sizes an item to its content and centres it -- so past about 125% the
+     group was wider than the bar and hung out of both ends of it, into a
+     panel that clips. Measured at 375px: at a 20px root "New game" was 7px off
+     the left edge; at 24px it sat at -46..20, two thirds of it gone; at 32px
+     it and Flip were off the screen entirely and Commands was cut off the
+     right. Four of the bar's six controls unreachable, at the text size a
+     reader chose because they needed it.
+
+     `max-width` holds it inside the column and the group scrolls within
+     whatever room that is, the way the mode strip below it does -- so nothing
+     is ever unreachable, and the bar keeps its height, which at 200% text is
+     the scarcer of the two. */
+  .mobile-actions {
+    grid-area: actions;
+    justify-self: center;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overflow-anchor: none;
+  }
+
+  .mobile-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top .compact-grid .mobile-actions button {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .mobile-modes-wrapper {
+    grid-area: modes;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .top .settings-menu {
+    grid-area: settings;
+    justify-self: end;
+  }
+
+  .top .settings-menu>summary {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    max-width: none;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .top .settings-menu>summary .btn-icon {
+    font-size: 1rem;
+  }
+
+  .top-mode-pills {
+    flex: 1 1 10rem;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .top-mode-pills[aria-label="Workspace mode"] {
+    flex-basis: 9rem;
+  }
+
+  /* Play and Analysis fill their strip instead of sitting at the left of it.
+     The container grows to the row width, so with `flex: none` pills the rest
+     of it was a wide dark tail — visible on a phone as most of the row being
+     empty. Grow but never shrink: the labels are short and must not truncate,
+     which is what `flex: none` was protecting further down. */
+  .top-mode-pills[aria-label="Workspace mode"] .gc-pill {
+    flex-grow: 1;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+
+  /* Three long labels, one row, and the wrapper scrolls when they do not fit.
+     Wrapping instead cost a whole row of the bar on the narrowest phone the app
+     supports -- **measured** at 320x568: the group stood 99px tall with "AI vs
+     AI" alone on the second line stretched to 280px, and the bar 236px of a
+     568px screen. One row brings it to 189px, which is what the same bar
+     measures at 375px, and hands those 47px to the board.
+     `min-width: max-content` on the pills is what makes it safe: they still
+     grow to share a row that fits, and refuse to shrink below their label when
+     it does not, so the row overflows into the scroll the wrapper already has
+     rather than truncating the mode a player is reading. Without it all three
+     clip at 320px, which is the thing the rules around this one exist to stop.
+     Nothing moves at 375px and up, where the group has always been one row. */
+  .top-mode-pills[aria-label="Game mode"] {
+    flex-basis: 17rem;
+    flex-wrap: nowrap;
+  }
+
+  .app-shell[data-workspace-mode="analysis"] .top-mode-pills[aria-label="Game mode"] {
+    display: none;
+  }
+
+  .top-mode-pills[aria-label="Game mode"] .gc-pill {
+    flex: 1 1 auto;
+    min-width: max-content;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    text-align: center;
+    line-height: 1;
+  }
+
+  .top-mode-pills[aria-label="Game mode"] .gc-pill-icon {
+    display: none;
+  }
+
+
+
+  /* Mobile settings backdrop */
+  .top .settings-menu[open] .settings-backdrop {
+    background: var(--backdrop);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    /* Fixed, so `100%` is the initial containing block -- the viewport without
+       its scrollbar, which is what a backdrop should cover. */
+    width: 100%;
+    height: 100dvh;
+  }
+
+  /* Make sure the text on the summary tag stays above if we don't hide it, 
+     but the modal body needs to be above the backdrop. */
+  .top .settings-body {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    /* Prevent blowout here -- against the screen the reader can see. `85vh`
+       is 85% of the *large* viewport, which at 390x844 behind iOS Safari's
+       ~115px of chrome is 717px of a 729px screen: 98%, not 85%, and a
+       12px strip of app left showing instead of 127px. A sheet that fills
+       the screen has stopped being a sheet. The backdrop directly above
+       already measures itself the right way. */
+    max-height: 85vh;
+    max-height: 85dvh;
+    z-index: 1000;
+    box-shadow:
+      0 -12px 48px rgba(0, 0, 0, 0.6),
+      0 -1px 0 0 var(--border-subtle);
+    padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    animation: none;
+    overflow-y: auto;
+    border: none;
+    border-top: 1px solid var(--border-strong);
+  }
+
+  /* Drawer pill handle */
+  .top .settings-body::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background: var(--border-strong);
+    border-radius: 4px;
+    z-index: 1001;
+    pointer-events: none;
+  }
+
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .settings-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-heading);
+    font-weight: 600;
+  }
+
+  .settings-close-btn {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 140ms ease;
+  }
+
+  .top .compact-grid .settings-body button:not(.btn-icon-only),
+  .top .settings-menu .settings-body .advanced-settings>summary {
+    height: auto;
+    min-height: 44px;
+  }
+
+  .top .settings-menu .settings-body .switch-control {
+    min-height: 44px;
+    padding: 0.25rem 0;
+    box-sizing: border-box;
+  }
+
+  .top .settings-menu .settings-body .control input[type="range"],
+  .top .settings-menu .settings-body .engine-option-row input,
+  .top .settings-menu .settings-body .engine-option-row select {
+    min-height: 44px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .settings-close-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-strong);
+    }
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .top-mode-pills,
+  .wc-nav,
+  .wc-speed {
+    min-height: 2.5rem;
+    padding: 0.18rem;
+  }
+
+  .top-mode-pills {
+    overflow: visible;
+  }
+
+  .gc-pill,
+  .wc-speed-pill,
+  .mode-pill,
+  .analysis-tab-btn {
+    min-height: 44px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .panel .gc-pill,
+  .panel .wc-speed-pill,
+  .panel .mode-pill,
+  .panel .analysis-tab-btn {
+    min-height: 44px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .top .compact-grid button:not(.btn-icon-only) {
+    padding: 0 0.5rem;
+    font-size: 0.78rem;
+  }
+
+  /* "Play" and "Analysis" read on their own; dropping the decorative icons buys
+     the width that keeps the whole bar visible without scrolling.
+     44px rather than the 2.5rem this used to ask for, which came out at 40 --
+     four short of what every other control on a phone here is held to, on the
+     row that *is* the navigation. **Measured** at 375x667, 375x564, 360x540,
+     320x568 and 320x480: the bar goes from 46 to 50px tall, never wraps, and
+     the board's squares lose between nothing and half a pixel. Neither of the
+     two sizes already sitting on the 24px floor moves off it. */
+  .watch-controls button.wc-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.55rem;
+    font-size: 1.15rem;
+  }
+
+
+  .watch-controls {
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+    column-gap: 0.6rem;
+  }
+
+  .bottom .panel-content {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.5rem var(--space-md);
+  }
+
+  .bottom-status-row {
+    display: flex !important;
+    justify-content: center;
+    width: 100%;
+    margin-left: 0 !important;
+    min-height: 1.45rem;
+    gap: 0.32rem;
+    overflow: hidden;
+  }
+
+  .app-shell[data-workspace-mode="analysis"] .bottom-status-row {
+    display: none !important;
+  }
+
+  .bottom-status-row .bottom-engine-info {
+    justify-content: center;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bottom-status-row .engine-command-inline,
+  .bottom-status-row .engine-telemetry-inline,
+  .bottom-status-row .best-move {
+    display: none;
+  }
+
+  .watch-controls {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .resize-handle {
+    display: none !important;
+  }
+
+  .preset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* `.inline-actions` was in this selector, asking for one button per row.
+     **Measured** at 375px: the pairs sat side by side at 151px each, two to a
+     row, because `grid-auto-flow: column` puts items 2..N in *implicit* columns
+     that `grid-template-columns` never names -- the rule had no effect from the
+     day it was written. It is a flex row now and wraps on its own when the
+     labels need the space, which is what this was reaching for. */
+
+  .inline-actions button {
+    min-height: 2.5rem;
+  }
+
+  .diagnostics-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Typography & fat-fingers adjustments */
+  .bottom-engine-info {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .panel-copy.small {
+    font-size: 0.78rem;
+  }
+
+  .sample-game-row {
+    padding: 0.6rem;
+    box-shadow: inset 0 0 0 1px var(--glass-3);
+  }
+
+  .sample-game-actions button {
+    min-height: 44px;
+    padding: 0.42rem 0.6rem;
+  }
+
+  .sample-filter-row .mode-pill {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .sample-game-row header strong {
+    font-size: 0.8rem;
+  }
+
+  .control,
+  .engine-option-row {
+    margin-bottom: 1rem;
+    padding-bottom: 0.4rem;
+  }
+
+  .control span,
+  .engine-option-row span {
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .control strong {
+    font-size: 0.95rem;
+  }
+
+  .switch-control {
+    min-height: 44px;
+    padding: 0.25rem 0;
+    box-sizing: border-box;
+    margin-bottom: 1rem;
+  }
+
+  .switch-control span {
+    font-size: 0.9rem;
+  }
+
+  input[type="range"] {
+    height: 16px;
+    /* Bigger track for fat fingers */
+    border-radius: 8px;
+  }
+
+  /* Bigger for a finger. Square and unsqueezable from the base rule. */
+  input[type="checkbox"] {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+
+  .engine-options {
+    max-height: 40vh;
+    max-height: 40dvh;
+    padding: 0.6rem;
+  }
+
+  .engine-option-row input,
+  .engine-option-row select {
+    padding: 0.45rem 0.55rem;
+    font-size: 0.85rem;
+  }
+}
+
+.gc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 130ms ease;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .top-mode-pills .gc-pill:hover {
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+  }
+}
+
+.top-mode-pills .gc-pill-active {
+  background: var(--accent-subtle);
+  border-color: var(--border-accent);
+  color: var(--accent-ink);
+}
+
+.gc-pill-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+  opacity: 0.8;
+}
+
+.gc-pill-active .gc-pill-icon {
+  opacity: 1;
+}
+
+/* Bottom status row */
+.bottom-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.bottom-engine-info {
+  font-size: 0.71rem;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* `.best-move` is a block paragraph elsewhere; inside the status strip it has to
+   stay inline or it claims the whole row and pushes the bar onto two lines. */
+.bottom-status-row .best-move {
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════
+   Landscape phone: board beside the panels
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
+  :root {
+    --stage-pad-y: 0.5rem;
+  }
+
+  /* The chooser is sized by the window here, not by the board.
+     Sideways on a phone the board is 203px wide, so four columns inside it are
+     31px each -- measured at 844x390, and 27px at 667x375, for the press that
+     decides what a pawn becomes. Fixed to the window it is the same 420px it
+     is everywhere else, and each choice is 94px. */
+  .promotion-overlay {
+    position: fixed;
+    /* Widening it to the window is what makes this necessary. At 169px it sat
+       inside the board and cleared the panels by geometry alone; at 420px it
+       runs under them. Measured with the z-index left at 6: still clickable,
+       because hit-testing put it on top, and painted behind the analysis
+       column, so what a reader saw was a sliver with a "Q" in it. 3000 is
+       where this app's other dialogs sit, which is what this is. */
+    z-index: 3000;
+    border-radius: 0;
+  }
+
+  /* And the stage has to come up with it. `.board-stage` is `position:
+     relative; z-index: 1` and `.panel` is `z-index: 4`, so everything inside
+     the stage paints under the panels whatever its own z-index -- measured
+     with the overlay at 3000, still drawn behind the analysis column. Only
+     while the chooser is up, so nothing else about the stacking of the board
+     against the panels changes. 2500 covers the top bar at 2000 the way a
+     modal should, and stays under the dialogs at 3000. */
+  .board-stage.promoting {
+    z-index: 2500;
+  }
+
+  .main-container {
+    flex-direction: row;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .board-stage {
+    order: 0;
+    flex: none;
+    width: auto;
+    max-width: none;
+    padding: var(--stage-pad-y) var(--stage-pad-x);
+  }
+
+  /* Height is the scarce axis here -- the bar above already folds back to one
+     row for it -- and this is the one layout where the stage had no room to
+     spare for the opening's name: arriving after the first move it pushed the
+     board 4px past the bottom of a container that clips. Neither the row nor
+     the strip's copy of it, so the board keeps its full 197px. The name is
+     still in the panel beside it, where there is width to spare. */
+  .board-opening-label {
+    display: none;
+  }
+
+  .right,
+  .left {
+    flex: 1 1 0;
+    width: auto !important;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    padding: var(--space-sm) !important;
+  }
+
+  .right {
+    order: 1;
+  }
+
+  .left {
+    order: 2;
+  }
+
+  /* Height is the scarce axis here, so the bar folds back to a single row —
+     there is width to spare — and the bars give their padding to the board. */
+  .top .compact-grid {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "actions modes settings";
+  }
+
+  .mobile-modes-wrapper,
+  .top .top-mode-pills {
+    flex-wrap: nowrap;
+  }
+
+  /* Pills keep their labels and the strip scrolls; shrinking them instead
+     truncated the mode a player is trying to read. */
+  .top .top-mode-pills .gc-pill {
+    flex: none;
+  }
+
+  .mobile-modes-wrapper {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  /* The strip is as wide as the board it labels, never wider: left in the
+     intrinsic sizing it would widen the stage and take that width off the
+     panels, which are the scarce thing here. */
+  .board-meta-strip {
+    width: 0;
+    min-width: 100%;
+  }
+
+  .top .panel-inner {
+    padding-block: 0.2rem;
+  }
+
+  .top .panel-content {
+    padding-block: 0.15rem;
+  }
+
+  /* Nav and status share one row here rather than stacking: the second row
+     cost the board more height than the status text is worth. */
+  .bottom .panel-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding-block: 0.25rem;
+    gap: 0.6rem;
+  }
+
+  .bottom-status-row {
+    width: auto !important;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* Engine and game status live in the bar, so the strip stops repeating them
+     and the two things it does say stop truncating each other. */
+  .app-shell[data-workspace-mode="analysis"] .bottom-status-row {
+    display: flex !important;
+  }
+
+  .board-meta-status {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Left rail fills its column
+   ═══════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+  /* Past a point, a wider window is not more room — it is more distance.
+     The board stops growing at `MAX_BOARD_PX`, so everything past that width
+     went into the gap around it while the two panels stayed pinned to the far
+     edges. **Measured** with a game loaded: at 1920 the board sits 257px from
+     the left panel and 223px from the right, which reads as breathing room; at
+     2560 those are 577 and 543; at 3440, 1017 and 983, with the Coach card and
+     the winrate graph a metre apart on a real monitor and the board marooned
+     between them.
+
+     Capping the middle column at the width it already has on a 1920 screen, and
+     centring the three of them, stops the spread without moving anything below
+     that: 1280, 1440 and 1920 are unchanged to the pixel, and 2560 and 3440 get
+     the same 257/223 the widest ordinary desktop has, with the surplus outside
+     the layout where it belongs. The board is still 800px — that cap is its
+     own decision, and a bigger board is not what a wide monitor is for. */
+  .main-container {
+    justify-content: center;
+  }
+
+  .board-stage {
+    max-width: 80rem;
+    /* The minimum playable board can outgrow a short window, especially once
+       enlarged engine statistics wrap the footer. Auto margins center it when
+       it fits and become zero when it needs to scroll, keeping its top reachable. */
+    overflow: auto;
+    align-items: flex-start;
+    justify-content: flex-start;
+    scroll-padding: 8px;
+  }
+
+  .board-stage .board-layout {
+    margin-block: auto;
+    margin-inline: auto;
+    max-width: none;
+    flex-shrink: 0;
+  }
+
+  /* An empty graph in the rail is a placeholder, not a destination. It says
+     what will fill it on one line and leaves the column to the library, which
+     is the only thing there to act on before a game exists. */
+  .panel.left .empty-state {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    padding: var(--space-sm) var(--space-xs);
+    gap: var(--space-sm);
+  }
+
+  .panel.left .empty-state-icon {
+    font-size: 1.1rem;
+  }
+
+  .panel.left .empty-state p {
+    max-width: none;
+  }
+
+  /* The analysis header and the bottom bar both state the engine's status
+     beside each other; the strip made three. It keeps the two facts that are
+     only there — whose move it is, and which move. */
+  .board-meta-status {
+    display: none;
+  }
+
+  .panel.left .panel-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .panel.left .analytics-card {
+    flex: none;
+  }
+
+  /* The library absorbs whatever the graph cards leave. In Play mode they are
+     hidden entirely, and a fixed 320px list left a third of the rail blank. */
+  .panel.left .sample-library-card {
+    flex: 1 1 auto;
+    /* Floor keeps the header, filters and a couple of rows readable rather than
+       letting the graphs crush the card below its own content. */
+    min-height: 13rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel.left .sample-game-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+/* Two classes so it outranks `.panel-copy.error-copy`. The tinted background
+   lifts the backdrop enough that `--danger` lands at 4.48:1; this clears AA. */
+.panel-copy.engine-error-copy {
+  color: var(--danger);
+  margin: 0.1rem 0 0;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  background: var(--danger-subtle);
+}
+
+/* Keyboard shortcut reference */
+.settings-subhead {
+  margin: 0.9rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0;
+}
+
+.shortcut-list>div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.shortcut-list dt {
+  display: flex;
+  gap: 0.25rem;
+  flex: none;
+  min-width: 5.5rem;
+}
+
+.shortcut-list dd {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.shortcut-list kbd {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-default);
+  border-bottom-width: 2px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════
+   Watch Controls (playback + speed)
+   ═══════════════════════════════════════════════════ */
+.watch-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+/* Navigation cluster */
+.wc-nav {
+  display: flex;
+  gap: 0.15rem;
+  align-items: center;
+  padding: 0.12rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--glass-2);
+}
+
+button.wc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.22rem 0.54rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 110ms ease,
+    color 110ms ease;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wc-btn:hover:not(:disabled) {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+}
+
+.wc-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+/* Play cluster */
+.wc-play {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.wc-btn-pause {
+  background: var(--bg-elevated) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wc-btn-pause:hover {
+    border-color: rgba(210, 153, 34, 0.4) !important;
+    color: var(--warning) !important;
+    background: var(--warning-subtle) !important;
+  }
+}
+
+.wc-btn-resume {
+  background: var(--accent-subtle) !important;
+  border-color: var(--border-accent) !important;
+  color: var(--accent-ink) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wc-btn-resume:hover {
+    background: rgba(63, 185, 80, 0.22) !important;
+    box-shadow: 0 0 10px var(--accent-glow) !important;
+  }
+}
+
+.wc-btn-step {
+  background: var(--info-subtle) !important;
+  border-color: rgba(88, 166, 255, 0.3) !important;
+  color: var(--info) !important;
+}
+
+/* Speed selector */
+.wc-paused-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--warning);
+  padding: 0.18rem 0.55rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(210, 153, 34, 0.25);
+  background: var(--warning-subtle);
+  white-space: nowrap;
+  animation: badge-pop 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wc-speed {
+  display: flex;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.12rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--glass-2);
+}
+
+.wc-speed-label {
+  font-size: 0.63rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  padding: 0 0.25rem 0 0.35rem;
+  user-select: none;
+}
+
+button.wc-speed-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0.18rem 0.5rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 0.67rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wc-speed-pill:hover {
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+  }
+}
+
+.wc-speed-active {
+  background: var(--accent-subtle) !important;
+  border-color: var(--border-accent) !important;
+  color: var(--accent-ink) !important;
+}
+
+/* ═══════════════════════════════════════════════════
+   Move List Tree
+   ═══════════════════════════════════════════════════ */
+/* The window onto the game, measured in rows of it.
+   **Measured** at 1440x900 with a game loaded: 180px held 5.6 rows at 100% text
+   and 5 at 200%, and on a 375px phone at 200% it held two -- a reader who has
+   asked for larger text gets a third as much of the game in the same box, while
+   every other box on the page grows with them. rem at the 16px baseline, so
+   nothing moves at 100% and the window keeps its rows at every size. */
+.mtree-scroll {
+  height: 16.25rem;
+  overflow-y: auto;
+  outline: none;
+  padding: 0.1rem 0;
+}
+
+/* A row = move number + white half + black half */
+.mtree-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr 1fr;
+  align-items: center;
+  gap: 0.15rem;
+  margin-bottom: 0.12rem;
+}
+
+.mtree-num {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  padding-left: 0.1rem;
+  user-select: none;
+}
+
+.mtree-spacer {
+  display: block;
+}
+
+/* A clickable move chip */
+/* Element+class so it outranks `.panel button`, which was painting all 84 move
+   chips with a card background and border. The design wants bare text that only
+   takes a surface on hover or when it is the current move. */
+button.mtree-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.22rem 0.4rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 100ms ease,
+    color 100ms ease,
+    border-color 100ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mtree-chip:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-subtle);
+  }
+}
+
+/* Currently viewed node */
+.mtree-chip-active {
+  background: var(--accent-subtle) !important;
+  border-color: var(--border-accent) !important;
+  color: var(--accent-ink) !important;
+  font-weight: 700 !important;
+}
+
+/* Quality dot on chip */
+/* A variation is capped in the list; this says how much is past the cut rather
+   than letting it disappear. Not a button: the moves it stands for are reached
+   by walking the variation, and a chip that navigates somewhere unnamed is
+   worse than a count. */
+/* Only present while the current move is off the main line, so it should read
+   as an offer rather than a permanent control. */
+/* The threat probe sits under the candidate line in the Coach card: one button
+   and one sentence, because that is the whole of the question. */
+/* Shown only when a game has actually ended, so it should look like a moment
+   rather than another panel section. */
+.game-over-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: var(--space-md);
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(63, 185, 80, 0.34);
+  border-radius: var(--radius-md);
+  background: rgba(63, 185, 80, 0.07);
+}
+
+.game-over-card h3 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.game-over-card p {
+  margin: 0;
+}
+
+.game-over-review-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.1rem;
+  padding: 0.4rem 0.7rem;
+}
+
+.coach-threat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.coach-threat-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid rgba(167, 139, 250, 0.34);
+  border-radius: var(--radius-md);
+  background: rgba(167, 139, 250, 0.08);
+  color: #a78bfa;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.coach-threat-btn:hover:not(:disabled) {
+  border-color: rgba(167, 139, 250, 0.6);
+  background: rgba(167, 139, 250, 0.14);
+}
+
+.coach-threat-btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.coach-threat-answer {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+/* Matches the violet of the arrow drawn for the same move. */
+.coach-threat-answer strong {
+  color: #a78bfa;
+}
+
+.mtree-branch-actions {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.4rem 0 0;
+}
+
+.mtree-promote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid rgba(63, 185, 80, 0.34);
+  border-radius: var(--radius-md);
+  background: rgba(63, 185, 80, 0.08);
+  color: var(--quality-good, #34d399);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mtree-promote-btn:hover {
+  border-color: rgba(63, 185, 80, 0.6);
+  background: rgba(63, 185, 80, 0.14);
+}
+
+/* Quieter than promote until it is armed: promoting is the move a reader wants,
+   discarding is the one they should have to mean. */
+.mtree-delete-btn {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mtree-delete-btn:hover {
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.mtree-delete-btn.armed,
+.mtree-delete-btn.armed:hover {
+  border-color: rgba(248, 81, 73, 0.55);
+  background: rgba(248, 81, 73, 0.12);
+  color: var(--danger);
+}
+
+.mtree-var-more {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 0.05rem 0.34rem;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-pill);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  cursor: help;
+}
+
+.mtree-chip-markers {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.mtree-quality-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mtree-comment-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+/* Inherit dot color from quality classes */
+.quality-book .mtree-quality-dot {
+  background: var(--quality-book);
+}
+
+.quality-best .mtree-quality-dot,
+.quality-excellent .mtree-quality-dot {
+  background: var(--quality-best);
+}
+
+.quality-good .mtree-quality-dot {
+  background: var(--quality-good);
+}
+
+.quality-inaccuracy .mtree-quality-dot {
+  background: var(--quality-inaccuracy);
+}
+
+.quality-mistake .mtree-quality-dot {
+  background: var(--quality-mistake);
+}
+
+.quality-blunder .mtree-quality-dot {
+  background: var(--quality-blunder);
+}
+
+/* Variation branch row */
+.mtree-variation {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.06rem 0 0.06rem 2rem;
+  border-left: 2px solid var(--border-subtle);
+  margin: 0.1rem 0 0.1rem 0.9rem;
+  flex-wrap: wrap;
+}
+
+.mtree-var-marker {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-right: 0.15rem;
+  flex-shrink: 0;
+}
+
+/* Element+class to match `button.mtree-chip` above: at plain `.mtree-chip-compact`
+   the base rule's `width: 100%` won, and every move in a variation took a line
+   of its own — a two-character move rendered 237px wide. */
+button.mtree-chip-compact {
+  padding: 0.15rem 0.35rem;
+  font-size: 0.71rem;
+  width: auto;
+}
+
+/* The move number inside a variation chip. Quieter than the move, in the same
+   face as the main line's number column, so "2... Nc6" reads as one token. */
+.mtree-chip-num {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 500;
+}
+
+/* What the NAGs say about the position, after the move: "Bb5 ±". The move's
+   own judgement is part of the move text, the way "Bb5!" is written. */
+.mtree-chip-nag {
+  color: var(--text-muted);
+  font-size: 0.7em;
+  margin-left: 0.1rem;
+}
+
+/* The brackets around a variation nested inside a variation. Not part of any
+   chip: they belong to the line, the way they do in a PGN. */
+.mtree-var-paren {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0 0.05rem;
+  user-select: none;
+}
+
+.mtree-current-comment {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+/* The six judgements a reader can put on the current move. One row, equal
+   pills; the one the move has takes the accent, the way the current move
+   chip does, so the state reads without hunting for it. */
+.mtree-glyph-row {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.panel button.mtree-glyph-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0.24rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: var(--radius-xs);
+}
+
+.panel button.mtree-glyph-btn.active {
+  background: var(--accent-subtle);
+  border-color: var(--border-accent);
+  color: var(--accent-ink);
+}
+
+.mtree-current-comment label,
+.mtree-current-comment-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.mtree-current-comment p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mtree-comment-input {
+  display: block;
+  width: 100%;
+  min-height: 4.6rem;
+  resize: vertical;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.45rem 0.5rem;
+  box-sizing: border-box;
+}
+
+.mtree-comment-input::placeholder {
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .top .compact-grid .top-mode-pills .gc-pill {
+    height: auto;
+    min-height: 44px;
+    padding: 0.45rem 0.8rem;
+  }
+
+  .right .inline-actions button,
+  .right .mtree-glyph-btn,
+  .right .preset-card,
+  .right .tablebase-move-row,
+  .right .opening-move-row,
+  .right .review-book-token-btn,
+  .right .engine-lab-console input,
+  .right .engine-lab-console button,
+  .right .diagnostics-actions button,
+  .right .engine-option-row input,
+  .right .engine-option-row select,
+  .app-shell .panel.right .engine-option-row input,
+  .app-shell .panel.right .engine-option-row select,
+  .app-shell .panel.right :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea),
+  .app-shell .panel.right .engine-lab-card button,
+  .right .opening-source-toggle .mode-pill,
+  .right .opening-speed-toggle .mode-pill {
+    min-height: 44px;
+  }
+
+  .app-shell .panel.right .engine-lab-card button {
+    min-width: 44px;
+  }
+
+  /* The Play controls also live in an engine-lab-card. Its touch-target floor
+     must not replace the label's content floor when enlarged text needs the
+     actions to wrap onto separate rows. */
+  .app-shell .panel.right .engine-lab-card .inline-actions button,
+  .app-shell .panel.right .engine-lab-card .engine-lab-console button {
+    min-width: min-content;
+  }
+
+  .panel .wc-btn,
+  .panel .wc-speed-pill {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .panel .mtree-chip {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0.42rem 0.5rem;
+  }
+
+  .panel .mtree-chip-compact {
+    min-height: 40px;
+    min-width: 2.5rem;
+    padding: 0.34rem 0.48rem;
+  }
+
+  .panel .mtree-row,
+  .panel .mtree-variation {
+    gap: 0.28rem;
+  }
+}
+
+/* Interactive Active States */
+button:active:not(:disabled),
+.wc-btn:active:not(:disabled),
+.gc-pill:active,
+.mode-pill:active,
+.analysis-tab-btn:active,
+summary:active {
+  transform: scale(0.96);
+  transition: transform 50ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .analyzing-bar.active::after,
+  .thinking-dots span,
+  .lazy-dialog-spinner,
+  .pulsing.btn-primary,
+  .status.loading::before,
+  .status.analyzing::before,
+  .status.thinking::before {
+    animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Board theme picker
+   ═══════════════════════════════════════════════════ */
+.board-theme-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.board-theme-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.board-theme-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* Element+class so the swatch clears `.panel button`'s inline-flex centring and
+   32px floor at equal specificity, the way `button.tablebase-move-row` does. */
+button.board-theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.28rem 0.3rem;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  overflow: visible;
+}
+
+button.board-theme-swatch.selected {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.board-theme-chip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 2.6rem;
+  height: 1.3rem;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.board-theme-chip>span {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-right: 2px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.board-theme-name {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+button.board-theme-swatch.selected .board-theme-name {
+  color: var(--text-heading);
+}
+
+/* The takeback sits under the Play Focus switches rather than beside Analyze
+   and Stop: those are engine commands and this changes the game. */
+.takeback-row {
+  margin-top: 0.5rem;
+}
+
+button.takeback-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+/* ── The edges of a strip that scrolls sideways ────────────────────────────
+   Two of them: the mode groups in the top bar, and the readings in the board's
+   own strip. Both hold their items at their natural width and let the row run
+   past the end rather than squeezing anything, so both need an edge that says
+   the row goes on.
+
+   What was there faded the trailing edge and nothing else, always. Which is
+   half right and half wrong at once: scrolled to the end it still promised
+   more to the right, and scrolled anywhere at all it said nothing about the
+   items now off the left -- and the leading edge is the one a reader is most
+   likely to have forgotten about, because they put the row there themselves.
+
+   Each edge is a number the scroll position drives, and the mask reads both.
+   Nothing here runs off the main thread's timers: `scroll()` is the scroller's
+   own progress, so the fades track a finger exactly. */
+@property --edge-lead {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --edge-trail {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+/* Faded once the row has been pushed off its start, and not before. */
+@keyframes edge-lead-in {
+  from { --edge-lead: 0; }
+  to { --edge-lead: 1; }
+}
+
+/* Faded until the end of the row is on the screen. */
+@keyframes edge-trail-out {
+  from { --edge-trail: 1; }
+  to { --edge-trail: 0; }
+}
+
+/* Pointer-specific settings copy.
+   The keyboard shortcut list is seven rows at the top of the panel, and on a
+   phone it pushes every control you can actually use below the fold for keys
+   the device does not have. Nothing is lost by hiding it: the command palette
+   prints each shortcut beside its command, so a paired keyboard still finds
+   them. The board-drawing hint is hidden for the stronger reason that it
+   describes a gesture a touch screen cannot perform. */
+.pointer-coarse-only {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .pointer-fine-only {
+    display: none;
+  }
+
+  .pointer-coarse-only {
+    display: block;
+  }
+}
+
+/* Hint and takeback share the Play Focus card's full width: both change the
+   game rather than the engine, and a two-column split cut their labels. */
+.hint-row {
+  margin-top: 0.5rem;
+}
+
+button.hint-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.hint-answer {
+  margin-top: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.hint-answer strong {
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+}
+
+/* The one interruption a game allows itself: a move that gave up a lot, with
+   the take-back beside it. Tinted like the grade it carries. */
+.blunder-nudge {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(249, 115, 22, 0.38);
+  border-radius: var(--radius-md);
+  background: rgba(249, 115, 22, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.blunder-nudge.blunder {
+  border-color: rgba(239, 68, 68, 0.42);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.blunder-nudge p {
+  margin: 0;
+}
+
+.blunder-nudge strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.blunder-nudge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+/* Two words that stay on one line: at the panel's default width "Play on"
+   was breaking across two. */
+.blunder-nudge-actions button {
+  white-space: nowrap;
+}
+
+/* What the mover had left. Tabular and dim: it belongs to the row without
+   competing with the quality label, which is what the eye is scanning for. */
+.review-move-row .move-clock {
+  grid-area: clock;
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* The evaluation in words, above the grid that gives it as a number. Coach
+   mode only: a Pro reader wants the number and already knows what it says. */
+.coach-verdict {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Resign sits beside Take back and behaves like it, until it is armed --
+   then it has to look like the thing that ends the game, or the second
+   click is a surprise. */
+.resign-btn.armed {
+  border-color: var(--danger, var(--danger));
+  color: var(--danger, var(--danger));
+}
+
+/* Who is up material. `flex: none` for the same reason the move number has it:
+   it is short, it must never clip, and the players' names absorb the squeeze. */
+.board-meta-flow>.board-meta-material {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+/* The offer to put a database file in the library, under the message that
+   says the board cannot take it. */
+.dialog-database-offer {
+  display: flex;
+  margin: 0.6rem 0 0.2rem;
+}
+
+/* A line being previewed: the board is showing a position the game has not
+   reached, so it is ringed in the green the engine's own moves already use and
+   the strip above says which move it is. */
+.board-surface.previewing :is(.board, [data-column]) {
+  outline: none;
+}
+
+.board-surface.previewing {
+  box-shadow: 0 0 0 2px rgba(63, 185, 80, 0.55);
+  border-radius: 14px;
+}
+
+.board-meta-preview {
+  flex: 0 0 auto;
+  border: 1px solid rgba(63, 185, 80, 0.5);
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.44rem;
+  background: rgba(63, 185, 80, 0.14);
+  color: var(--quality-best);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
+/* A one-line word about what just happened -- "FEN copied" -- for the
+   commands that would otherwise finish in silence. Floated over the board
+   rather than parked in a panel, because the command was run from the
+   palette and the reader may be looking anywhere. */
+/* Spans the window and centres what is in it, rather than being a point in the
+   middle that whatever it holds grows out of in both directions. The notices
+   are sentences -- "That shared link could not be read — showing the starting
+   position." is 428px wide -- and centred on a 320px phone that one lost 54px
+   off each end, first word and last, with nothing able to scroll it back. */
+.app-notice-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 3.4rem;
+  /* Above the bars it sits on. At 40 it was under `.panel.bottom`, which is
+     `z-index: 200` on a phone: measured at 320x568 and 390x844, the thing
+     painted in the middle of the notice was `.wc-nav`, and a screenshot of
+     that corner has no notice in it at all. Every message the app raises --
+     "FEN copied", "That shared link was cut short" -- reached a screen reader
+     through `aria-live` and no sighted phone reader at all. Below the dialogs
+     at 3000, which a status line has no business covering. */
+  z-index: 2100;
+  display: flex;
+  justify-content: center;
+  padding-inline: 1rem;
+  pointer-events: none;
+}
+
+.app-notice {
+  max-width: 32rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: center;
+  text-wrap: balance;
+  box-shadow: var(--shadow-md);
+  animation: app-notice-in 160ms ease-out;
+}
+
+@keyframes app-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-notice {
+    animation: none;
+  }
+}
+
+/* ── Blindfold ─────────────────────────────────────────
+   The pieces are made transparent rather than removed. They still have to be
+   picked up and dragged, and an element that is not rendered cannot be — so
+   this is `opacity`, not `visibility` (which stops hit-testing) and not a board
+   drawn without pieces.
+
+   Scoped to `[data-piece]` inside the stage, so the promotion chooser's pieces
+   — a control, not the board — stay visible: being unable to see which piece
+   you are promoting to is not part of playing blindfold. */
+.board-stage.blindfold [data-piece] {
+  opacity: 0;
+}
+
+/* The board keeps its own focus ring, so a keyboard player can still tell
+   where they are without being able to see what is there. */
+.board-stage.blindfold [data-piece]:focus-visible {
+  opacity: 0.35;
+}
+
+.board-blindfold-pill {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── Line drill ────────────────────────────────────────
+   The two start buttons sit with "Play from here", because they answer the
+   same question in different tenses: play this position, or play this line
+   from memory. */
+.drill-btn {
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.drill-btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.drill-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.drill-progress {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.drill-miss {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+}
+
+.drill-row {
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.drill-row-label {
+  font-family: var(--font-heading);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-right: auto;
+}
+
+/* The first screen's start card: one primary action, the alternatives under it. */
+.start-card {
+  margin-bottom: var(--space-md);
+  padding: 0.65rem;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.start-card h3 {
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-tertiary);
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.start-card-primary {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.45rem;
+  min-height: 44px;
+  margin-bottom: 0.45rem;
+}
+
+.start-card-summary {
+  flex-basis: 100%;
+  font-size: 0.68rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* Only the gap and the margin. The `display: grid` with `grid-template-columns:
+   1fr 1fr` that used to be here is what actually cut these labels: it pinned two
+   equal columns whatever the text size, and it outranked nothing -- it simply came
+   later in the file than `.inline-actions`, so the flex row there never reached
+   this element. Measured: the parent still read `display: grid` with tracks of
+   105.703px and 105.719px after `.inline-actions` was made to wrap, and the six
+   labels were cut by the same pixels. This row is only ever used together with
+   `.inline-actions`, which now supplies the wrapping row. */
+.start-card-row {
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.start-card-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  /* `nowrap` here is what turned a long label into a cut one: with nowhere to
+     break, "Choose settings" needed 170px of a 104px button at 200% text and the
+     other 66px went behind `overflow: hidden`. Two lines in a button that is
+     already `min-height: 40px` costs a reader nothing; a word sliced down the
+     middle costs them the label. */
+  white-space: normal;
+}
+
+.start-card-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Stacked, one action a row: side by side at the panel's width the primary
+   button wrapped its label onto two lines. */
+.game-over-card .game-over-actions {
+  display: grid;
+  grid-auto-flow: row;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+}
+
+.game-over-card .game-over-actions > button {
+  width: 100%;
+  margin: 0;
+}
+
+.game-over-again-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 40px;
+}
+
+/* ── Drawing with a finger ──────────────────────────────────────────────────
+   The mode is offered only where there is no right button to put the two
+   gestures on. A mouse already has both, and would be given a mode that costs
+   it the ability to move a piece. */
+/* Pinned past the end of the readings, never in the row that scrolls: a button
+   the strip has squeezed to nothing is not a button. */
+.board-draw-controls {
+  display: none;
+  flex: none;
+}
+
+.board-draw-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  /* The browser must not claim the drag for a scroll or a zoom before the
+     first pointermove arrives, or the arrow is abandoned mid-gesture. */
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* The board says which mode it is in, because the cost of guessing wrong is a
+   move that does not happen. */
+.board-surface.drawing {
+  position: relative;
+  border-radius: 12px;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.85);
+}
+
+@media (pointer: coarse) {
+  .board-draw-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: auto;
+  }
+
+  /* This whole block only exists for a coarse pointer, so its entire audience
+     is fingers -- and it asked for 2.25rem, which is 36px. **Measured** at
+     375x667 before: 61x36, eight short of the bar every other control on a
+     phone is held to, on the switch that decides whether a press draws an
+     arrow or moves a piece. */
+  .board-draw-controls button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 44px;
+    padding: 0 0.55rem;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  /* The switch wears the colour it draws in, so the mode and its marks are
+     plainly the same thing. */
+  .board-draw-toggle.active {
+    border-color: rgba(59, 130, 246, 0.85);
+    background: rgba(59, 130, 246, 0.16);
+    color: #93c5fd;
+  }
+}
+
+.app-shell[data-scroll-chrome="true"] {
+  overflow-y: auto;
+  scroll-padding-block: 8px;
+}
+
+.app-shell[data-scroll-chrome="true"] > :is(.top, .bottom) > .resize-handle {
+  /* Firefox's native focus scroll otherwise clips the collapsed top handle. */
+  scroll-margin-block: 8px;
+}
+
+.app-shell[data-scroll-chrome="true"] .main-container {
+  /* Let the bars scroll away when they would leave only a sliver of workspace.
+     A viewport of content keeps native focus scrolling useful in each panel. */
+  flex: none;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.app-shell[data-scroll-chrome="true"] .dialog-backdrop {
+  padding: 0.5rem;
+}
+
+.app-shell[data-scroll-chrome="true"] .dialog-panel {
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  scroll-padding-block: 8px;
+}
+
+.app-shell[data-scroll-chrome="true"] .new-game-dialog {
+  /* Keep the choices readable as text grows, using the available width. */
+  max-width: 28.75rem;
+}
+
+.app-shell[data-scroll-chrome="true"] .engine-details-popover {
+  bottom: 1rem;
+  max-height: calc(100dvh - 2rem);
+}
+
+.app-shell[data-scroll-chrome="true"] .command-palette-input {
+  /* Revealing an active command must not scroll the focused search away. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-base);
+}
+
+.app-shell[data-scroll-chrome="true"] .dialog-panel > :is(.dialog-header, .dialog-body, .dialog-actions) {
+  flex: none;
+}
+
+.app-shell[data-scroll-chrome="true"] .dialog-panel > .dialog-body {
+  /* Enlarged headings and actions must not squeeze the form to zero height. */
+  max-height: none;
+  overflow: visible;
+}
+
+/* Keep desktop modes and actions in two rows when text or window height makes
+   the full toolbar too tall. The single h1 stays in the accessibility tree. */
+.app-shell[data-compact-chrome="true"] .top .app-brand {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+.app-shell[data-compact-chrome="true"] .top .panel-inner {
+  padding-block: calc(0.2rem + env(safe-area-inset-top)) 0.2rem;
+}
+
+.app-shell[data-compact-chrome="true"] .top .compact-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  grid-template-areas: "actions workspace settings" "game game game";
+  gap: 0.3rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.app-shell[data-compact-chrome="true"] .top .toolbar-divider,
+.app-shell[data-compact-chrome="true"] .top .btn-label {
+  display: none;
+}
+
+.app-shell[data-compact-chrome="true"] .top .mobile-modes-wrapper {
+  display: contents;
+}
+
+.app-shell[data-compact-chrome="true"] .top [data-mode-group="workspace"] {
+  grid-area: workspace;
+}
+
+.app-shell[data-compact-chrome="true"] .top [data-mode-group="game"] {
+  grid-area: game;
+  justify-self: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.app-shell[data-compact-chrome="true"] .top .gc-pill {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.app-shell[data-compact-chrome="true"] .top .mobile-actions {
+  grid-area: actions;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0.2rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.app-shell[data-compact-chrome="true"] .top .mobile-actions button,
+.app-shell[data-compact-chrome="true"] .top .settings-menu > summary {
+  flex-shrink: 0;
+  width: max(44px, 1.6rem);
+  min-width: max(44px, 1.6rem);
+  height: max(44px, 1.6rem);
+  min-height: max(44px, 1.6rem);
+  padding: 0;
+}
+
+.app-shell[data-compact-chrome="true"] .top .settings-menu {
+  grid-area: settings;
+  margin: 0;
+}
+
+/* Transport stays in one row; extra speeds remain reachable by touch, wheel
+   and native keyboard focus scrolling. Engine details open above the bar. */
+.bottom[data-compact-status="true"] .panel-content {
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.bottom[data-compact-status="true"] .watch-controls {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 3px;
+}
+
+.bottom[data-compact-status="true"] .watch-controls > * {
+  flex-shrink: 0;
+}
+
+.bottom[data-compact-status="true"] .bottom-status-row {
+  flex: none;
+}
+
+.bottom[data-compact-status="true"] .watch-controls button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* ═══════════════════════════════════════════════════
+   Dropdowns
+   ═══════════════════════════════════════════════════ */
+
+/*
+ * Safari sizes a native `<select>` itself and throws the author's box away.
+ *
+ * **Measured** in WebKit against Chromium, the same element under the same
+ * rules -- the engine options dropdown in Settings: computed `min-height`
+ * **18px against 32px**, computed padding **0 against 5.76px 7.36px**, and a
+ * control drawn **18px tall at 100% text and 33px at 200%** where Chromium
+ * draws 32px and 55px. The selectors all match in both engines; the rules
+ * simply do not survive a menulist. So every sizing rule this app has for a
+ * dropdown was a no-op on the only engine iOS has -- including the 44px touch
+ * target the fourth pass put on the right-hand panel, which is the one place
+ * the number matters most.
+ *
+ * `appearance: none` hands the box back, and the arrow it takes away is drawn
+ * here. Uniform rather than behind a Safari hack: a control that is the app's
+ * own shape in one browser and the system's in another is two controls.
+ *
+ * Last in the file on purpose. `.engine-option-row select` sets `background`
+ * as a shorthand, which would otherwise reset the arrow to nothing.
+ */
+.app-shell select {
+  appearance: none;
+  -webkit-appearance: none;
+  /* A chevron, in a grey that reads on both themes. Decoration: the control
+     is already named by its label and announced as a listbox. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23888888' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 0.58rem auto;
+  /* Room for the arrow, so a long option does not run under it. */
+  padding-right: 1.5rem;
+}

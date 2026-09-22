@@ -1,0 +1,136 @@
+{
+  "protocol": "CGP",
+  "version": "1.0",
+  "note": "Hop dong chung cho ba ban hien thuc codec (Java / Node / TypeScript). Moi ban phai sinh ra dung chuoi hex nay va giai ma nguoc lai duoc. Day la bang chung cho dong gop N6 - protocol doc lap ngon ngu.",
+  "byteOrder": "big-endian",
+  "frameLayout": "LEN(u32) | TYPE(u8) | SEQ(u32) | PAYLOAD,  LEN = 5 + payload.length",
+  "frames": [
+    {
+      "name": "login",
+      "type": "LOGIN",
+      "seq": 1,
+      "payloadKind": "json",
+      "payload": {
+        "username": "alice",
+        "password": "chess123"
+      },
+      "hex": "0000002f01000000017b22757365726e616d65223a22616c696365222c2270617373776f7264223a226368657373313233227d"
+    },
+    {
+      "name": "heartbeat",
+      "type": "HEARTBEAT",
+      "seq": 42,
+      "payloadKind": "empty",
+      "payload": null,
+      "hex": "000000050e0000002a"
+    },
+    {
+      "name": "move-e2e4",
+      "type": "MOVE",
+      "seq": 2,
+      "payloadKind": "move",
+      "payload": {
+        "from": "e2",
+        "to": "e4",
+        "promo": "",
+        "ply": 0
+      },
+      "hex": "0000000d06000000020c1c000000000000"
+    },
+    {
+      "name": "move-promotion-knight",
+      "type": "MOVE",
+      "seq": 3,
+      "payloadKind": "move",
+      "payload": {
+        "from": "e7",
+        "to": "e8",
+        "promo": "n",
+        "ply": 41
+      },
+      "hex": "0000000d0600000003343c010000290000"
+    },
+    {
+      "name": "move-applied-check",
+      "type": "MOVE_APPLIED",
+      "seq": 4,
+      "payloadKind": "moveApplied",
+      "payload": {
+        "ply": 13,
+        "from": "g1",
+        "to": "f3",
+        "promo": "",
+        "flags": 17,
+        "clockWhiteMs": 178500,
+        "clockBlackMs": 181000,
+        "serverProcessMs": 4
+      },
+      "hex": "000000158300000004000d061500110002b9440002c3080004"
+    },
+    {
+      "name": "move-applied-mate",
+      "type": "MOVE_APPLIED",
+      "seq": 5,
+      "payloadKind": "moveApplied",
+      "payload": {
+        "ply": 61,
+        "from": "d1",
+        "to": "h5",
+        "promo": "",
+        "flags": 48,
+        "clockWhiteMs": 5400,
+        "clockBlackMs": 0,
+        "serverProcessMs": 7
+      },
+      "hex": "000000158300000005003d0327003000001518000000000007"
+    },
+    {
+      "name": "clock-pong",
+      "type": "CLOCK_PONG",
+      "seq": 6,
+      "payloadKind": "clockPong",
+      "payload": {
+        "t1": 1000,
+        "t2": 1040,
+        "t3": 1041
+      },
+      "hex": "0000001d850000000600000000000003e800000000000004100000000000000411"
+    },
+    {
+      "name": "game-over",
+      "type": "GAME_OVER",
+      "seq": 7,
+      "payloadKind": "json",
+      "payload": {
+        "result": "1-0",
+        "reason": "checkmate",
+        "eloDelta": 8
+      },
+      "hex": "0000003786000000077b22726573756c74223a22312d30222c22726561736f6e223a22636865636b6d617465222c22656c6f44656c7461223a387d"
+    },
+    {
+      "name": "rules-validate",
+      "type": "RULES_VALIDATE",
+      "seq": 8,
+      "payloadKind": "json",
+      "payload": {
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "from": "e2",
+        "to": "e4",
+        "promo": ""
+      },
+      "hex": "0000006820000000087b2266656e223a22726e62716b626e722f70707070707070702f382f382f382f382f50505050505050502f524e42514b424e522077204b516b71202d20302031222c2266726f6d223a226532222c22746f223a226534222c2270726f6d6f223a22227d"
+    },
+    {
+      "name": "error-illegal-move",
+      "type": "ERROR",
+      "seq": 9,
+      "payloadKind": "json",
+      "payload": {
+        "code": 3002,
+        "message": "Nuoc di khong hop le"
+      },
+      "hex": "000000338f000000097b22636f6465223a333030322c226d657373616765223a224e756f63206469206b686f6e6720686f70206c65227d"
+    }
+  ]
+}

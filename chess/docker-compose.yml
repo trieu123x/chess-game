@@ -1,0 +1,128 @@
+# DCGS - Distributed Chess Game Server
+#
+# Chay toan bo he thong bang mot lenh, khong can cai Java/Node/PostgreSQL tren may:
+#   docker compose up -d --build
+#
+# Profile:
+#   (mac dinh)  postgres + server + web-client   -> chay duoc ngay hom nay
+#   full        them rules-service x2, gateway, bot  -> khi code cac module do xong
+#
+# Cong tren may that duoc doi de KHONG dung voi dich vu dang chay san:
+#   PostgreSQL trong container: 5433  (PostgreSQL 18 cai truc tiep van giu 5432)
+
+name: dcgs
+
+services:
+  # ---------------------------------------------------------------- database
+  postgres:
+    image: postgres:18-alpine
+    container_name: dcgs-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: dcgs
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5433:5432"
+    volumes:
+      - dcgs-pgdata:/var/lib/postgresql/data
+      # schema.sql chay mot lan duy nhat khi volume con trong
+      - ./source/database/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dcgs"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ------------------------------------------------------------- game server
+  server:
+    build:
+      context: ./source
+      dockerfile: server/Dockerfile
+    container_name: dcgs-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Ghi de config.properties - xem Config.java: server.port -> SERVER_PORT
+      SERVER_PORT: "5555"
+      SERVER_BIND: "0.0.0.0"
+      SERVER_IO: "nio"                # nio | blocking        -> thi nghiem E2
+      SERVER_FORMAT: "binary"         # binary | json         -> thi nghiem E3
+      CLOCK_COMPENSATION: "true"      # true | false          -> thi nghiem E4
+      RULES_MODE: "remote"            # remote | embedded     -> thi nghiem E7
+      RULES_ENDPOINTS: "rules-1:6001,rules-2:6001"
+      DB_URL: "jdbc:postgresql://postgres:5432/dcgs"
+      DB_USER: "dcgs_app"
+      DB_PASSWORD: "dcgs_app_pw"
+      LOG_LEVEL: "INFO"
+    # Bo --check khi lop mang da duoc trien khai (PLAN.md tuan 1-2)
+    command: ["--config", "/app/config.properties", "--check"]
+    ports:
+      - "5555:5555"
+    restart: "no"
+
+  # -------------------------------------------------------------- web client
+  web-client:
+    build:
+      context: ./source/web-client
+      args:
+        VITE_GATEWAY_URL: ${VITE_GATEWAY_URL:-ws://localhost:8080}
+    container_name: dcgs-web
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+
+  # ------------------------------------------- rules service (stateless x N)
+  rules-1:
+    profiles: ["full"]
+    build:
+      context: ./source/rules-service
+    container_name: dcgs-rules-1
+    environment:
+      RULES_PORT: "6001"
+    restart: unless-stopped
+
+  rules-2:
+    profiles: ["full"]
+    build:
+      context: ./source/rules-service
+    container_name: dcgs-rules-2
+    environment:
+      RULES_PORT: "6001"
+    restart: unless-stopped
+
+  # ----------------------------------------------- web gateway (WS <-> TCP)
+  gateway:
+    profiles: ["full"]
+    build:
+      context: ./source/web-spectator
+    container_name: dcgs-gateway
+    depends_on:
+      - server
+    environment:
+      WS_PORT: "8080"
+      TCP_TARGET: "server:5555"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # ---------------------------------------------- bot sinh tai (thuc nghiem)
+  bot:
+    profiles: ["full"]
+    build:
+      context: ./source/bot
+    container_name: dcgs-bot
+    depends_on:
+      - server
+    environment:
+      SERVER_HOST: "server"
+      SERVER_PORT: "5555"
+      GAMES: "50"
+    volumes:
+      - ./statics/results:/out
+    restart: "no"
+
+volumes:
+  dcgs-pgdata:

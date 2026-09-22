@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Web Chess</title>
+  <rect width="512" height="512" rx="96" fill="#050505"/>
+  <path fill="#0f1720" d="M96 96h320v320H96z"/>
+  <path fill="#f0d9b5" d="M96 96h80v80H96zm160 0h80v80h-80zm-80 80h80v80h-80zm160 0h80v80h-80zM96 256h80v80H96zm160 0h80v80h-80zm-80 80h80v80h-80zm160 0h80v80h-80z"/>
+  <path fill="#b58863" d="M176 96h80v80h-80zm160 0h80v80h-80zM96 176h80v80H96zm160 0h80v80h-80zm-80 80h80v80h-80zm160 0h80v80h-80zM96 336h80v80H96zm160 0h80v80h-80z"/>
+  <path fill="#050505" fill-opacity=".36" d="M96 96h320v320H96z"/>
+  <path fill="#10b981" d="M256 116l28 34 43 8-23 37 6 44-54-20-54 20 6-44-23-37 43-8z"/>
+  <path fill="#f8fafc" d="M184 368h144l-17-54h-30v-87h-50v87h-30z"/>
+  <path fill="#f8fafc" d="M218 202h76v42h-76z"/>
+  <path fill="#f8fafc" d="M238 161h36v112h-36z"/>
+  <path fill="#050505" fill-opacity=".18" d="M184 368h144v24H184z"/>
+  <path fill="none" stroke="#10b981" stroke-width="18" stroke-linecap="round" d="M184 392h144"/>
+</svg>

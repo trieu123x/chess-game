@@ -1,0 +1,29 @@
+{
+  "name": "dcgs-web-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DCGS web client - giao dien ke thua tu Sir-Teo/web-chess (MIT), lop mang do nhom tu viet",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "preview": "vite preview",
+    "check:engine": "node tools/check-engine.mjs",
+    "check:app": "node tools/check-app.mjs"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "react": "^19.2.0",
+    "react-chessboard": "^5.10.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "playwright": "^1.63.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1"
+  }
+}

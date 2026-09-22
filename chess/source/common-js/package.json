@@ -1,0 +1,13 @@
+{
+  "name": "dcgs-common-js",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Codec CGP/RVP ban Node - dung chung cho gateway, bot va rules service",
+  "main": "cgp.js",
+  "scripts": {
+    "test": "node --test",
+    "test:interop-ts": "node --experimental-strip-types check-ts-interop.mjs",
+    "gen:vectors": "node gen-testvectors.mjs"
+  }
+}

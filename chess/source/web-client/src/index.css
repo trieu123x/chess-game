@@ -1,0 +1,394 @@
+:root {
+  /* ── Base surfaces ─────────────────────────────── */
+  --bg-base: #08090b;
+  --bg-surface: #101218;
+  --bg-elevated: #171a22;
+  --bg-panel: rgba(17, 19, 25, 0.86);
+  --bg-card: rgba(24, 27, 35, 0.76);
+  --bg-card-hover: rgba(32, 36, 46, 0.92);
+  --bg-input: rgba(8, 10, 14, 0.84);
+
+  /* ── Borders ───────────────────────────────────── */
+  --border-subtle: rgba(255, 255, 255, 0.055);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-accent: rgba(52, 211, 153, 0.35);
+
+  /* ── Text ──────────────────────────────────────── */
+  --text-primary: #f2f3f5;
+  --text-secondary: #b2b7c2;
+  /* Raised from #858b98, which cleared AA on the plain card but fell to 3.8:1
+     over the coach card's teal tint and sat on the 4.5 line in the accuracy
+     summary — both at label sizes under 11px. */
+  --text-tertiary: #949aa7;
+  --text-heading: #ffffff;
+  --text-muted: #7c8391;
+  /* Raised from #626977, which sat at 3.3:1 on the card surface — below AA for
+     the small metadata text it is used for. */
+
+  /* ── Accent (emerald glow) ─────────────────────── */
+  --accent: #2dd4bf;
+  /* The accent as *text*: the active pill, the engine status, "Best: Nf3".
+     Its own token because a fill and an ink want opposite things from a
+     colour. On near-black this one is the accent itself and clears AA
+     comfortably; on white the same teal is a pastel. Measured, not guessed --
+     see accentContrast.test.ts. */
+  --accent-ink: #2dd4bf;
+  --accent-hover: #34d399;
+  --accent-muted: #0f766e;
+  --accent-subtle: rgba(45, 212, 191, 0.14);
+  --accent-glow: rgba(45, 212, 191, 0.26);
+
+  /* ── Semantic ──────────────────────────────────── */
+  --danger: #ef4444;
+  --danger-subtle: rgba(239, 68, 68, 0.12);
+  --warning: #f59e0b;
+  --warning-subtle: rgba(245, 158, 11, 0.12);
+  --success: #10b981;
+  --success-subtle: rgba(16, 185, 129, 0.12);
+  --info: #3b82f6;
+  --info-subtle: rgba(59, 130, 246, 0.12);
+
+  /* ── Glass and depth ────────────────────────────────
+     The highlights, scrims and insets App.css used to write as literals.
+     On a dark surface a highlight is a little white and a well a little
+     black; a light theme has them the other way round, which is the reason
+     these are tokens and not the literals they replaced. */
+  --glass-1: rgba(255, 255, 255, 0.025);
+  --glass-2: rgba(255, 255, 255, 0.035);
+  --glass-3: rgba(255, 255, 255, 0.05);
+  --glass-4: rgba(255, 255, 255, 0.08);
+  --glass-5: rgba(255, 255, 255, 0.12);
+  --bg-scrim: rgba(11, 13, 17, 0.94);
+  --bg-inset: rgba(8, 10, 14, 0.42);
+  --bg-tooltip: rgba(6, 8, 12, 0.9);
+  --tooltip-text: #ffffff;
+  --backdrop: rgba(0, 0, 0, 0.66);
+  --accent-chip-bg: #06110f;
+  --accent-chip-text: #7defde;
+
+  /* ── Trend graph inks ───────────────────────────────
+     White's line is white on the dark theme, which is the one ink that
+     cannot survive a light one. */
+  --graph-grid: rgba(240, 246, 252, 0.05);
+  --graph-axis: rgba(240, 246, 252, 0.35);
+  --graph-white: #f0f6fc;
+  --graph-white-glow: rgba(240, 246, 252, 0.3);
+  /* The dashed line marking where in the game you are. It was written inline
+     in the SVG as `rgba(255, 255, 255, 0.8)` -- the value this keeps, so the
+     dark theme is unchanged -- which on a light card is white on white: 1.11:1,
+     the graph's main affordance, invisible. */
+  --graph-cursor: rgba(255, 255, 255, 0.8);
+  --graph-draw: #ffb86c;
+  --graph-black: #58a6ff;
+
+  /* ── Quality ───────────────────────────────────── */
+  /* Slate rather than a colour: Book is not a grade. Measured in
+     reviewPalette.test.ts -- blue-400 collapsed onto Best's green for a
+     tritanope (0.5 units apart); this keeps 23+ from every grade and 37
+     from Pending's grey under all three simulations. */
+  --quality-book: #cbd5e1;
+  --quality-best: #10b981;
+  --quality-good: #34d399;
+  --quality-inaccuracy: #fbbf24;
+  --quality-mistake: #f97316;
+  --quality-blunder: #ef4444;
+  --quality-pending: #71717a;
+
+  /* ── Quality, as chip text ───────────────────────────
+     The quality tokens above draw the 5px dot beside a move in the tree,
+     where the floor is 3:1 because a dot is not read. The review's summary
+     chips print the same grades as *words* -- "Blunder 2" -- at 10.7px on a
+     tint of their own colour, where the floor is 4.5. Three of them miss it,
+     which is why these exist: the same split `--accent-ink` makes, for the
+     same reason. The other five chips clear it on the shared token and are
+     left there. Measured in qualityChipContrast.test.ts. */
+  --quality-good-ink: #34d399;
+  --quality-blunder-ink: #f87171;
+  --quality-pending-ink: #949aa7;
+
+  /* ── Trend graphs (keep in sync with GRAPH_HEIGHT in App.tsx) ── */
+  --graph-height: 160px;
+
+  /* ── Board evaluation column ───────────────────── */
+  /* In rem so the column grows with the label inside it — at a 20px root the
+     text scaled and a px-fixed column truncated it. */
+  --eval-col-w: 1.625rem;
+  --eval-col-gap: 0.5rem;
+
+  /* ── Board chrome ──────────────────────────────────
+     Everything stacked horizontally beside the board. The board size is
+     computed in JS, so these stay in rem and are mirrored by
+     BOARD_CHROME in App.tsx — change one, change the other. */
+  --stage-pad-x: 1.25rem;
+  --stage-pad-y: 1.35rem;
+  --board-frame: 0.55rem;
+
+  /* ── Spacing ───────────────────────────────────── */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+
+  /* ── Radii ─────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ── Shadows ───────────────────────────────────── */
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.26);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.58);
+  --shadow-glow: 0 0 24px var(--accent-glow);
+
+  /* ── Typography ────────────────────────────────── */
+  --font-heading: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  font-family: var(--font-body);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-primary);
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Light theme ─────────────────────────────────────
+   Every token above, on a light surface. The same names, so nothing in the
+   stylesheets knows which theme it is drawing; the hues keep their meaning
+   and lose a step of brightness, because a colour that reads on near-black
+   is a pastel on white. Set from Settings, or by the OS when the reader
+   picks System; the app's own look stays dark. */
+:root[data-theme="light"] {
+  --bg-base: #eef0f3;
+  --bg-surface: #f7f8fa;
+  --bg-elevated: #ffffff;
+  --bg-panel: rgba(255, 255, 255, 0.88);
+  --bg-card: rgba(255, 255, 255, 0.84);
+  --bg-card-hover: rgba(241, 243, 246, 0.96);
+  --bg-input: rgba(255, 255, 255, 0.92);
+
+  --border-subtle: rgba(15, 23, 42, 0.07);
+  --border-default: rgba(15, 23, 42, 0.13);
+  --border-strong: rgba(15, 23, 42, 0.24);
+  --border-accent: rgba(13, 148, 136, 0.42);
+
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #4b5563;
+  --text-heading: #0b1220;
+  /* Not gray-500, which is what mirroring the dark block gives you. The dark
+     `--text-muted` above carries a note about being raised off a value that
+     sat under AA for the small metadata this token draws; the light one was
+     never put through the same check and landed in the same place. gray-500
+     reads 4.23:1 on `--bg-base` -- which is the page itself and the bottom
+     half of the shell gradient, where the sample-game metadata and the preset
+     summaries sit at 10px. This is 5.25 there and 6.00 on a card, and stays
+     a clear step lighter than `--text-tertiary`. */
+  --text-muted: #5b6470;
+
+  --accent: #0d9488;
+  /* Teal-800, two steps darker than the fill. Teal-600 is what every accent
+     *text* rule used to inherit here, and it reads 2.95:1 on the tinted
+     background of an active pill -- under AA, on the selected state of the
+     app's primary navigation, at 12px. Teal-700 gets to 4.31 and still misses.
+     This clears 4.5 everywhere it lands: 5.97 on the pill, 7.14 on a card,
+     7.58 on white. The fill keeps teal-600, because a fill is not read. */
+  --accent-ink: #115e59;
+  --accent-hover: #0f766e;
+  --accent-muted: #99f6e4;
+  --accent-subtle: rgba(13, 148, 136, 0.12);
+  --accent-glow: rgba(13, 148, 136, 0.22);
+
+  --danger: #dc2626;
+  --danger-subtle: rgba(220, 38, 38, 0.10);
+  --warning: #b45309;
+  --warning-subtle: rgba(180, 83, 9, 0.10);
+  --success: #047857;
+  --success-subtle: rgba(4, 120, 87, 0.10);
+  --info: #1d4ed8;
+  --info-subtle: rgba(29, 78, 216, 0.10);
+
+  --glass-1: rgba(15, 23, 42, 0.03);
+  --glass-2: rgba(15, 23, 42, 0.045);
+  --glass-3: rgba(15, 23, 42, 0.06);
+  --glass-4: rgba(15, 23, 42, 0.09);
+  --glass-5: rgba(15, 23, 42, 0.13);
+  --bg-scrim: rgba(247, 248, 250, 0.94);
+  --bg-inset: rgba(15, 23, 42, 0.05);
+  --bg-tooltip: rgba(17, 24, 39, 0.94);
+  --tooltip-text: #ffffff;
+  --backdrop: rgba(15, 23, 42, 0.42);
+  --accent-chip-bg: #ccfbf1;
+  --accent-chip-text: #0f766e;
+
+  --graph-grid: rgba(15, 23, 42, 0.07);
+  --graph-axis: rgba(15, 23, 42, 0.42);
+  --graph-white: #334155;
+  --graph-white-glow: rgba(51, 65, 85, 0.22);
+  --graph-cursor: rgba(15, 23, 42, 0.75);
+  --graph-draw: #b45309;
+  --graph-black: #1d4ed8;
+
+  /* Measured in reviewPalette.test.ts like the dark set, and chosen by the
+     probe rather than by eye. A deuteranope keeps lightness and blue-yellow
+     and little else, so on white the three bad grades are a lightness
+     ladder -- amber-700, orange-800, red-900 -- not a hue ladder: the
+     first try, a step apart in hue and alike in lightness, put inaccuracy
+     0.7 units from mistake for them. Worst pairs now: 19.4 across the
+     divide (inaccuracy/blunder, tritan), 9.0 anywhere (mistake/blunder,
+     tritan), 22.4 best/blunder for a protanope. Every ink but Good clears
+     AA on white; Good sits at 3.8, and is the grade a reader loses least
+     by misreading. Book is a mid slate for the same reason its dark
+     counterpart is a light one. */
+  --quality-book: #475569;
+  --quality-best: #047857;
+  --quality-good: #059669;
+  --quality-inaccuracy: #b45309;
+  --quality-mistake: #9a3412;
+  --quality-blunder: #7f1d1d;
+  --quality-pending: #6b7280;
+
+  /* Good is emerald-800 rather than the 600 the dot uses: the light palette's
+     note above accepts Good at 3.8 on white as the grade a reader loses least
+     by misreading, which is a fair trade for a dot and not for a word. Blunder
+     is red-700, which stays clearly redder than mistake's orange-800 while
+     clearing the floor; the dot keeps red-900. Pending is the theme's own
+     tertiary text, because "not read yet" is what that colour already means. */
+  --quality-good-ink: #065f46;
+  --quality-blunder-ink: #b91c1c;
+  --quality-pending-ink: #4b5563;
+
+  --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 22px 60px rgba(15, 23, 42, 0.16);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg-base);
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  /* `100vw` is the viewport *including* a classic scrollbar, so on any browser
+     that draws one this cap is a few pixels wider than the room there is, and
+     the page it is meant to protect from overflowing overflows by exactly that
+     much. `100%` is the room there is. Same mistake as `vh` for a height, one
+     axis over. */
+  max-width: 100%;
+}
+
+::selection {
+  background: rgba(45, 212, 191, 0.28);
+  color: var(--text-heading);
+}
+
+#root {
+  width: 100%;
+}
+
+.app-error-shell {
+  /* Same reasoning as `.app-shell`: the height a reader can see, not the one
+     the chrome would leave behind if it retracted. */
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.12), transparent 34rem),
+    linear-gradient(180deg, #101218 0%, var(--bg-base) 100%);
+}
+
+.app-error-card {
+  width: min(100%, 31rem);
+  padding: 1.4rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+}
+
+.app-error-kicker {
+  margin: 0 0 0.45rem;
+  color: var(--accent-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.app-error-card h1 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1.7rem;
+}
+
+.app-error-card p {
+  color: var(--text-secondary);
+}
+
+.app-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 520px) {
+  .app-error-card h1 {
+    font-size: 1.35rem;
+  }
+}
+
+.app-error-actions button {
+  min-height: 2.5rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.app-error-actions button:first-child {
+  border-color: var(--border-accent);
+  background: var(--accent-subtle);
+  color: var(--accent-ink);
+}
+
+/* ── Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(110, 118, 129, 0.24);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(110, 118, 129, 0.44);
+}

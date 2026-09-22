@@ -1,0 +1,25 @@
+# ---- Node ----
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# ---- Java / Maven ----
+target/
+*.class
+
+# ---- runtime / log ----
+*.log
+pending-moves.log
+chess/source/server/pending-moves.log
+
+# ---- ket qua chay thu (giu thu muc, bo file tam) ----
+chess/source/web-client/tools/last-run.png
+chess/statics/results/*.tmp
+
+# ---- he dieu hanh / IDE ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml

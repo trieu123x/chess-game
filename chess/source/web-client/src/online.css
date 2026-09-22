@@ -1,0 +1,146 @@
+/* Giao diện phần online — CODE CỦA NHÓM.
+   Dùng lại bảng màu và biến CSS kế thừa trong index.css / App.css. */
+
+.dcgs-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.dcgs-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dcgs-brand { font-weight: 800; letter-spacing: 0.08em; }
+.dcgs-status { opacity: 0.8; }
+.dcgs-rtt { margin-left: auto; font-variant-numeric: tabular-nums; opacity: 0.7; }
+
+.dcgs-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.dcgs-login { max-width: 420px; margin: 8vh auto 0; }
+.dcgs-login h1 { font-size: 1.35rem; margin: 0 0 4px; }
+.dcgs-login form { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.dcgs-login label { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; opacity: 0.85; }
+
+.dcgs-login input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+  font: inherit;
+}
+
+.dcgs-sub { opacity: 0.65; font-size: 0.85rem; }
+.dcgs-error { color: #ff7b72; font-size: 0.85rem; cursor: pointer; }
+.dcgs-warn { color: #d29922; font-size: 0.85rem; }
+.dcgs-result { font-size: 1.05rem; font-weight: 700; }
+
+button.dcgs-primary,
+button.dcgs-ghost,
+button.dcgs-danger {
+  font: inherit;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.dcgs-primary { background: #238636; color: #fff; }
+.dcgs-ghost { background: transparent; border-color: rgba(255, 255, 255, 0.18); color: inherit; }
+.dcgs-danger { background: transparent; border-color: #8b2c2c; color: #ff7b72; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.dcgs-presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+
+.dcgs-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dcgs-preset:hover:not(:disabled) { border-color: #388bfd; }
+.dcgs-preset span { font-size: 0.75rem; opacity: 0.6; }
+
+.dcgs-queued { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+
+.dcgs-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #388bfd;
+  border-radius: 50%;
+  animation: dcgs-spin 0.8s linear infinite;
+}
+
+@keyframes dcgs-spin { to { transform: rotate(360deg); } }
+
+.dcgs-game { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.dcgs-side { display: flex; flex-direction: column; gap: 12px; min-width: 300px; flex: 1; }
+.dcgs-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 0.9rem; }
+.dcgs-row span { opacity: 0.6; }
+
+.dcgs-moves ol { list-style: none; margin: 8px 0 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.dcgs-moves li { display: flex; gap: 10px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+.dcgs-moves h3 { margin: 0; font-size: 0.9rem; opacity: 0.7; }
+.dcgs-no { opacity: 0.45; min-width: 26px; }
+
+.dcgs-actions { display: flex; gap: 10px; }
+.dcgs-actions button { flex: 1; }
+
+.dcgs-log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; }
+.dcgs-log summary { cursor: pointer; opacity: 0.7; }
+.dcgs-log ul { list-style: none; margin: 10px 0 0; padding: 0; max-height: 180px; overflow-y: auto; }
+.dcgs-log li { padding: 1px 0; opacity: 0.85; }
+
+@media (max-width: 860px) {
+  .dcgs-game { flex-direction: column; }
+  .dcgs-side { min-width: 0; width: 100%; }
+}
+
+/* --- bo sung cho che do choi voi bot / hot-seat --- */
+
+.dcgs-h2 { font-size: 0.95rem; margin: 18px 0 4px; opacity: 0.9; }
+.dcgs-sep { border: none; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 20px 0 4px; }
+.dcgs-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+.dcgs-field > span { font-size: 0.8rem; opacity: 0.6; }
+.dcgs-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.dcgs-chip {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dcgs-chip small { opacity: 0.55; margin-left: 4px; }
+.dcgs-chip:hover { border-color: #388bfd; }
+.dcgs-chip-on { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.dcgs-chip-on small { opacity: 0.8; }
+
+.dcgs-boardbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.dcgs-boardbar button { font-size: 0.8rem; padding: 6px 10px; }
+.dcgs-meta .dcgs-sub .dcgs-spinner { margin-right: 6px; vertical-align: -2px; }

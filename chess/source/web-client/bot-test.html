@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DCGS - chan doan engine</title>
+    <style>
+      body { font: 14px ui-monospace, Menlo, monospace; background: #0d1117; color: #c9d1d9; padding: 24px; }
+      .ok { color: #3fb950; } .bad { color: #ff7b72; } pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Chẩn đoán bot cờ</h1>
+    <p>Trang này chạy engine Stockfish tách khỏi giao diện React, để tách bạch lỗi engine và lỗi UI.</p>
+    <pre id="out">đang chạy…</pre>
+    <script type="module" src="/src/bot/diagnose.ts"></script>
+  </body>
+</html>
