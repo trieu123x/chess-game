@@ -15,44 +15,59 @@ import java.util.UUID;
 /**
  * Mot ket noi client.
  *
- * Giu ba thu ma lop mang can: bo giai ma dang do (vi TCP khong giu ranh gioi
- * message), hang doi gui co gioi han, va trang thai phien.
+ * **Van de dong bo:** byte den tu thread selector, nhung message gui di lai
+ * sinh ra tu thread game (GameActor broadcast nuoc di cho ca hai nguoi choi).
+ * Neu hai ben cung cham vao hang doi gui va vao `interestOps` thi se hong.
  *
- * Hang doi gui co gioi han la co che backpressure (ngoai le X04): client doc
- * cham thi server khong duoc phinh bo nho vo han vi no — vuot nguong thi dong
- * ket noi do, cac ket noi khac khong bi anh huong.
+ * Cach giai: hang doi gui duoc bao ve bang khoa cua chinh Connection; thread
+ * game chi ENQUEUE roi danh thuc selector; viec GHI xuong socket luon chay
+ * tren thread selector. Nho vay `SocketChannel` khong bao gio bi hai thread
+ * ghi cung luc, va thread game khong bao gio bi chan vi mot client doc cham.
  */
 public final class Connection {
 
     public enum State { NEW, AUTHENTICATED, CLOSING }
 
+    /** Selector duoc danh thuc de di gui phan vua xep hang. */
+    public interface WriteWaker {
+        void wake(Connection connection);
+    }
+
     private final long id;
     private final SocketChannel channel;
     private final SelectionKey key;
+    private final WriteWaker waker;
     private final FrameCodec.Decoder decoder = new FrameCodec.Decoder();
     private final Deque<ByteBuffer> outbound = new ArrayDeque<>();
     private final int sendQueueMax;
     private final String remote;
 
-    private State state = State.NEW;
-    private long userId;
-    private String username;
-    private UUID sessionToken;
+    private volatile State state = State.NEW;
+    private volatile long userId;
+    private volatile String username;
+    private volatile UUID sessionToken;
+    /** Van dang danh, de dinh tuyen MOVE/RESIGN ve dung GameActor. */
+    private volatile long gameId;
 
     private final long connectedAt = System.currentTimeMillis();
-    private long lastSeenAt = System.currentTimeMillis();
-    private long rttMs;
+    private volatile long lastSeenAt = System.currentTimeMillis();
+    private volatile long rttMs;
+    private volatile long heartbeatSentAt;
 
-    // Rate limit dang token bucket, moi giay nap lai (X03).
     private long windowStart = System.currentTimeMillis();
     private int messagesInWindow;
     private int rateViolations;
 
-    public Connection(long id, SocketChannel channel, SelectionKey key, int sendQueueMax) throws IOException {
+    private long bytesIn;
+    private long bytesOut;
+
+    public Connection(long id, SocketChannel channel, SelectionKey key,
+                      int sendQueueMax, WriteWaker waker) throws IOException {
         this.id = id;
         this.channel = channel;
         this.key = key;
         this.sendQueueMax = sendQueueMax;
+        this.waker = waker;
         this.remote = String.valueOf(channel.getRemoteAddress());
     }
 
@@ -92,6 +107,14 @@ public final class Connection {
         return sessionToken;
     }
 
+    public long gameId() {
+        return gameId;
+    }
+
+    public void setGameId(long gameId) {
+        this.gameId = gameId;
+    }
+
     public long connectedAt() {
         return connectedAt;
     }
@@ -104,9 +127,35 @@ public final class Connection {
         return rttMs;
     }
 
-    /** RTT do server TU DO qua chu trinh heartbeat — khong tin so client bao (X33). */
-    public void recordRtt(long sampleMs) {
-        this.rttMs = rttMs == 0 ? sampleMs : (rttMs * 3 + sampleMs) / 4;
+    public long bytesIn() {
+        return bytesIn;
+    }
+
+    public long bytesOut() {
+        return bytesOut;
+    }
+
+    public void countIn(int bytes) {
+        bytesIn += bytes;
+    }
+
+    /**
+     * Danh dau moc gui HEARTBEAT de tu do RTT.
+     *
+     * Con so nay moi duoc dung de tru gio; so lieu client bao len khong duoc
+     * tin (X33) vi khai RTT lon la duoc cong them thoi gian.
+     */
+    public void markHeartbeatSent() {
+        heartbeatSentAt = System.currentTimeMillis();
+    }
+
+    public void recordHeartbeatAck() {
+        if (heartbeatSentAt == 0) {
+            return;
+        }
+        long sample = System.currentTimeMillis() - heartbeatSentAt;
+        heartbeatSentAt = 0;
+        rttMs = rttMs == 0 ? sample : (rttMs * 3 + sample) / 4;
     }
 
     public void touch() {
@@ -124,10 +173,6 @@ public final class Connection {
         state = State.CLOSING;
     }
 
-    /**
-     * @return false neu client gui qua nhanh (X03). Ben goi tra ERROR 4005;
-     *         vi pham 3 lan thi dong ket noi.
-     */
     public boolean allowMessage(int maxPerSecond) {
         long now = System.currentTimeMillis();
         if (now - windowStart >= 1_000) {
@@ -147,40 +192,68 @@ public final class Connection {
 
     // ---------------------------------------------------------------- gui
 
+    /**
+     * Xep mot frame vao hang doi gui. Goi duoc tu BAT KY thread nao.
+     *
+     * Hang doi day nghia la client doc khong kip (X04): dong ket noi do thay
+     * vi de server phinh bo nho vi mot client cham.
+     */
     public void send(ByteBuffer frame) {
-        if (state == State.CLOSING) {
-            return;
+        boolean overflow = false;
+        synchronized (outbound) {
+            if (state == State.CLOSING) {
+                return;
+            }
+            if (outbound.size() >= sendQueueMax) {
+                overflow = true;
+            } else {
+                bytesOut += frame.remaining();
+                outbound.addLast(frame);
+            }
         }
-        if (outbound.size() >= sendQueueMax) {
+        if (overflow) {
+            markClosing();
             throw new CgpException(ErrorCode.SERVER_OVERLOADED,
                     "hang doi gui day (" + sendQueueMax + "), client doc qua cham");
         }
-        outbound.addLast(frame);
-        flush();
+        waker.wake(this);
     }
 
-    /** Gui het muc co the; con du thi bat OP_WRITE de selector goi lai. */
-    public void flush() {
+    /** Ghi xuong socket. CHI duoc goi tren thread selector. */
+    void flush() {
         try {
-            while (!outbound.isEmpty()) {
-                ByteBuffer head = outbound.peekFirst();
+            for (;;) {
+                ByteBuffer head;
+                synchronized (outbound) {
+                    head = outbound.peekFirst();
+                }
+                if (head == null) {
+                    break;
+                }
                 channel.write(head);
                 if (head.hasRemaining()) {
-                    key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
+                    if (key.isValid()) {
+                        key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
+                    }
                     return;
                 }
-                outbound.pollFirst();
+                synchronized (outbound) {
+                    outbound.pollFirst();
+                }
             }
-            key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE);
+            if (key.isValid()) {
+                key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE);
+            }
         } catch (IOException failure) {
-            // Client bien mat giua luc ghi (X05): khong nem len tren, de vong
-            // lap selector don dep binh thuong.
+            // Client bien mat giua luc ghi (X05): de vong lap selector don dep.
             markClosing();
         }
     }
 
     public boolean hasPendingWrites() {
-        return !outbound.isEmpty();
+        synchronized (outbound) {
+            return !outbound.isEmpty();
+        }
     }
 
     @Override

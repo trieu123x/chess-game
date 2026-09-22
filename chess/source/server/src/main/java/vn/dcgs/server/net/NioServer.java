@@ -11,6 +11,7 @@ import vn.dcgs.common.MsgType;
 import vn.dcgs.server.Config;
 import vn.dcgs.server.data.Database;
 import vn.dcgs.server.data.PasswordHash;
+import vn.dcgs.server.game.GameService;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -20,34 +21,30 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Lop mang cua Game Server: non-blocking I/O bang Selector.
  *
- * Mot Selector duy nhat lo accept, doc va ghi. O quy mo cua do an (vai tram
- * ket noi, message vai chuc byte) mot vong lap la du va de giai thich; viec
- * tach nhieu IoWorker se lam khi do E2 neu so lieu cho thay can.
+ * Mot Selector duy nhat lo accept, doc va ghi. Logic van dau chay tren thread
+ * pool rieng (GameService); thread do chi XEP HANG message roi danh thuc
+ * selector, nen socket luon chi co mot thread ghi vao.
  *
  * Nguyen tac: loi cua mot ket noi khong duoc cham toi ket noi khac. Moi
  * exception deu bi bat tai bien nay, doi thanh ERROR co ma, va chi ket noi
  * gay loi bi dong.
- *
- * Tuan 1 phuc vu: LOGIN, RESUME, LOGOUT, HEARTBEAT, CLOCK_PING.
- * Cac message ve van dau (QUEUE_JOIN, MOVE...) se duoc dinh tuyen toi
- * GameActor o tuan 2.
  */
 public final class NioServer implements Runnable, AutoCloseable {
 
-    private final Config config;
     private final Database database;
+    private final GameService games;
 
     private final int port;
     private final String bind;
@@ -55,13 +52,16 @@ public final class NioServer implements Runnable, AutoCloseable {
     private final int maxMsgPerSec;
     private final int sendQueueMax;
     private final long preLoginTimeoutMs;
+    private final long heartbeatIntervalMs;
     private final long heartbeatTimeoutMs;
     private final long sessionTtlMs;
     private final boolean traceFrames;
 
     private final Map<Long, Connection> connections = new ConcurrentHashMap<>();
     /** userId -> ket noi dang hoat dong, de phat hien dang nhap hai noi (X16). */
-    private final Map<Long, Connection> byUser = new HashMap<>();
+    private final Map<Long, Connection> byUser = new ConcurrentHashMap<>();
+    /** Ket noi co byte cho gui, do thread game xep vao (xem Connection). */
+    private final ConcurrentLinkedQueue<Connection> needsFlush = new ConcurrentLinkedQueue<>();
     private final AtomicLong nextConnectionId = new AtomicLong(1);
 
     private Selector selector;
@@ -70,16 +70,18 @@ public final class NioServer implements Runnable, AutoCloseable {
 
     private long accepted;
     private long rejected;
+    private long lastHeartbeatAt;
 
-    public NioServer(Config config, Database database) {
-        this.config = config;
+    public NioServer(Config config, Database database, GameService games) {
         this.database = database;
+        this.games = games;
         this.port = config.getInt("server.port", 5555);
         this.bind = config.get("server.bind", "0.0.0.0");
         this.maxConnections = config.getInt("server.maxConnections", 1000);
         this.maxMsgPerSec = config.getInt("conn.maxMsgPerSec", 50);
         this.sendQueueMax = config.getInt("conn.sendQueueMax", 256);
         this.preLoginTimeoutMs = config.getInt("conn.preLoginTimeoutMs", 10_000);
+        this.heartbeatIntervalMs = config.getInt("heartbeat.intervalMs", 5_000);
         this.heartbeatTimeoutMs = config.getInt("heartbeat.timeoutMs", 15_000);
         this.sessionTtlMs = config.getInt("session.ttlMs", 3_600_000);
         this.traceFrames = config.getBoolean("log.frames", false);
@@ -101,7 +103,8 @@ public final class NioServer implements Runnable, AutoCloseable {
         long lastScan = System.currentTimeMillis();
         while (running) {
             try {
-                selector.select(500);
+                selector.select(200);
+
                 Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
                 while (keys.hasNext()) {
                     SelectionKey key = keys.next();
@@ -118,10 +121,22 @@ public final class NioServer implements Runnable, AutoCloseable {
                     }
                 }
 
+                // Message do thread game xep vao duoc ghi o day - tren thread selector.
+                Connection pending;
+                while ((pending = needsFlush.poll()) != null) {
+                    if (pending.state() != Connection.State.CLOSING) {
+                        pending.flush();
+                    }
+                }
+
                 long now = System.currentTimeMillis();
                 if (now - lastScan >= 1_000) {
                     lastScan = now;
                     scanTimeouts(now);
+                }
+                if (now - lastHeartbeatAt >= heartbeatIntervalMs) {
+                    lastHeartbeatAt = now;
+                    sendHeartbeats();
                 }
             } catch (IOException failure) {
                 if (running) {
@@ -129,6 +144,11 @@ public final class NioServer implements Runnable, AutoCloseable {
                 }
             }
         }
+    }
+
+    private void wake(Connection connection) {
+        needsFlush.add(connection);
+        selector.wakeup();
     }
 
     // ---------------------------------------------------------------- accept
@@ -160,7 +180,7 @@ public final class NioServer implements Runnable, AutoCloseable {
         SelectionKey key = channel.register(selector, SelectionKey.OP_READ);
 
         long id = nextConnectionId.getAndIncrement();
-        Connection connection = new Connection(id, channel, key, sendQueueMax);
+        Connection connection = new Connection(id, channel, key, sendQueueMax, this::wake);
         key.attach(connection);
         connections.put(id, connection);
         accepted++;
@@ -189,6 +209,7 @@ public final class NioServer implements Runnable, AutoCloseable {
             return;
         }
         connection.touch();
+        connection.countIn(count);
 
         List<Frame> frames;
         try {
@@ -199,6 +220,7 @@ public final class NioServer implements Runnable, AutoCloseable {
             return;
         }
 
+        long receivedAt = System.currentTimeMillis();
         for (Frame frame : frames) {
             if (!connection.allowMessage(maxMsgPerSec)) {
                 sendError(connection, ErrorCode.RATE_LIMITED, "gui qua " + maxMsgPerSec + " message/giay");
@@ -209,7 +231,7 @@ public final class NioServer implements Runnable, AutoCloseable {
                 continue;
             }
             try {
-                dispatch(connection, frame);
+                dispatch(connection, frame, receivedAt);
             } catch (CgpException failure) {
                 sendError(connection, failure.code(), failure.reason());
                 if (failure.closesConnection()) {
@@ -231,7 +253,7 @@ public final class NioServer implements Runnable, AutoCloseable {
 
     // ------------------------------------------------------------- dinh tuyen
 
-    private void dispatch(Connection connection, Frame frame) {
+    private void dispatch(Connection connection, Frame frame, long receivedAt) {
         if (traceFrames) {
             System.out.printf("  %s <- %s%n", connection, frame);
         }
@@ -243,15 +265,27 @@ public final class NioServer implements Runnable, AutoCloseable {
             case MsgType.LOGIN -> handleLogin(connection, frame);
             case MsgType.RESUME -> handleResume(connection, frame);
             case MsgType.LOGOUT -> handleLogout(connection, frame);
-            case MsgType.HEARTBEAT -> {
-                connection.send(FrameCodec.encode(MsgType.HEARTBEAT_ACK, frame.seq()));
-            }
+            case MsgType.HEARTBEAT -> connection.send(FrameCodec.encode(MsgType.HEARTBEAT_ACK, frame.seq()));
+            case MsgType.HEARTBEAT_ACK -> connection.recordHeartbeatAck();
             case MsgType.CLOCK_PING -> handleClockPing(connection, frame);
-            case MsgType.QUEUE_JOIN, MsgType.QUEUE_LEAVE, MsgType.MOVE, MsgType.RESIGN,
-                 MsgType.DRAW_OFFER, MsgType.DRAW_REPLY, MsgType.SPECTATE_JOIN,
-                 MsgType.SPECTATE_LEAVE, MsgType.HISTORY_REQ ->
+
+            case MsgType.QUEUE_JOIN -> {
+                JsonNode payload = Json.parse(frame.payload());
+                int elo = database.findUserById(connection.userId())
+                        .map(Database.UserRow::elo).orElse(1200);
+                games.joinQueue(connection, Json.required(payload, "timeControl"), elo);
+            }
+            case MsgType.QUEUE_LEAVE -> games.leaveQueue(connection);
+            case MsgType.MOVE -> games.onMove(connection, MoveCodec.decodeMove(frame.payload()), receivedAt);
+            case MsgType.RESIGN -> games.onResign(connection);
+            case MsgType.DRAW_OFFER -> games.onDrawOffer(connection);
+            case MsgType.DRAW_REPLY -> games.onDrawReply(connection,
+                    frame.payload().length > 0 && frame.payload()[0] != 0);
+            case MsgType.HISTORY_REQ -> games.sendSnapshot(connection);
+
+            case MsgType.SPECTATE_JOIN, MsgType.SPECTATE_LEAVE ->
                     sendError(connection, ErrorCode.INTERNAL_ERROR,
-                            MsgType.name(frame.type()) + " chua duoc trien khai (PLAN.md tuan 2)");
+                            MsgType.name(frame.type()) + " chua duoc trien khai (PLAN.md tuan 3)");
             default -> throw new CgpException(ErrorCode.UNKNOWN_TYPE,
                     String.format("0x%02X", frame.type()));
         }
@@ -286,8 +320,9 @@ public final class NioServer implements Runnable, AutoCloseable {
                 "userId", user.id(),
                 "username", user.username(),
                 "elo", user.elo()))));
-        System.out.printf("LOGIN %s (id=%d, elo=%d) tu %s%n",
-                user.username(), user.id(), user.elo(), connection.remote());
+        if (traceFrames) {
+            System.out.printf("LOGIN %s (id=%d, elo=%d)%n", user.username(), user.id(), user.elo());
+        }
     }
 
     /** Dang nhap noi khac: dong phien cu co kiem soat thay vi de hai phien song song (X16). */
@@ -331,7 +366,7 @@ public final class NioServer implements Runnable, AutoCloseable {
                 "username", user.username(),
                 "elo", user.elo()))));
         System.out.printf("RESUME %s tu %s%n", user.username(), connection.remote());
-        // Van dang danh se duoc gui kem GAME_SNAPSHOT o tuan 2.
+        // Noi lai vao van dang danh (GAME_SNAPSHOT + replay) la viec cua tuan 3 (X14).
     }
 
     private void handleLogout(Connection connection, Frame frame) {
@@ -344,8 +379,8 @@ public final class NioServer implements Runnable, AutoCloseable {
 
     /**
      * Doi hinh NTP: t1 client gui, t2 server nhan, t3 server tra loi.
-     * Client dung ba moc nay de tinh offset; con RTT dung de tru gio thi
-     * server tu do lay, khong nhan tu client (X33).
+     * Client dung ba moc nay de hien thi dong ho cho khop; con RTT dung de tru
+     * gio thi server tu do bang chu trinh heartbeat cua chinh no (X33).
      */
     private void handleClockPing(Connection connection, Frame frame) {
         long t2 = System.currentTimeMillis();
@@ -355,7 +390,22 @@ public final class NioServer implements Runnable, AutoCloseable {
                 MoveCodec.encodeClockPong(t1, t2, t3)));
     }
 
-    // --------------------------------------------------------------- quet gio
+    // --------------------------------------------------------------- dinh ky
+
+    /** Server chu dong gui HEARTBEAT de TU DO RTT, khong tin so client bao (X33). */
+    private void sendHeartbeats() {
+        for (Connection connection : connections.values()) {
+            if (!connection.authenticated()) {
+                continue;
+            }
+            try {
+                connection.markHeartbeatSent();
+                connection.send(FrameCodec.encode(MsgType.HEARTBEAT, 0));
+            } catch (CgpException overflow) {
+                close(connection, null);
+            }
+        }
+    }
 
     private void scanTimeouts(long now) {
         List<Connection> doomed = new ArrayList<>();
@@ -392,14 +442,18 @@ public final class NioServer implements Runnable, AutoCloseable {
             try {
                 connection.send(FrameCodec.encode(MsgType.ERROR, 0,
                         Json.of(Map.of("code", reason.code(), "message", reason.reason()))));
+                connection.flush();
             } catch (CgpException ignored) {
                 // Khong gui duoc thi thoi, van phai dong.
             }
         }
-        connections.remove(connection.id());
+        if (connections.remove(connection.id()) == null) {
+            return;                      // da dong roi
+        }
         if (connection.userId() != 0) {
             byUser.remove(connection.userId(), connection);
         }
+        games.onDisconnect(connection);
         try {
             connection.channel().close();
         } catch (IOException ignored) {

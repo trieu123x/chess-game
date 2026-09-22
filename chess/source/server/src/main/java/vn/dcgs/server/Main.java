@@ -3,7 +3,9 @@ package vn.dcgs.server;
 import vn.dcgs.common.FrameCodec;
 import vn.dcgs.common.MsgType;
 import vn.dcgs.server.data.Database;
+import vn.dcgs.server.game.GameService;
 import vn.dcgs.server.net.NioServer;
+import vn.dcgs.server.net.RulesClient;
 
 import java.nio.file.Path;
 
@@ -86,12 +88,18 @@ public final class Main {
                     + "' chua duoc trien khai (baseline cua thi nghiem E2), dang chay 'nio'");
         }
 
-        NioServer server = new NioServer(config, database);
+        RulesClient rules = new RulesClient(config);
+        GameService games = new GameService(config, database, rules);
+        NioServer server = new NioServer(config, database, games);
         server.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\nDang tat: " + server.stats());
+            System.out.println("  " + games.stats());
+            System.out.println("  rules: " + rules.stats());
             server.close();
+            games.close();
+            rules.close();
             database.close();
         }));
 

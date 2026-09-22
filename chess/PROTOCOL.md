@@ -49,7 +49,7 @@ SEQ   = số thứ tự tăng dần của bên gửi; response echo lại SEQ c�
 | 0x0B | SPECTATE_LEAVE | JSON `{gameId}` | |
 | 0x0C | HISTORY_REQ | JSON `{gameId}` | xem lại ván |
 | 0x0D | CLOCK_PING | **binary 8 byte**: `t1 u64` | t1 = đồng hồ client (ms) |
-| 0x0E | HEARTBEAT | rỗng | gửi mỗi 5 s |
+| 0x0E | HEARTBEAT | rỗng | gửi mỗi 5 s. **Hai chiều** (v1.1): server cũng gửi loại này, client phải trả `HEARTBEAT_ACK` |
 
 ### Server → Client (0x80–0x9F)
 
@@ -66,7 +66,7 @@ SEQ   = số thứ tự tăng dần của bên gửi; response echo lại SEQ c�
 | 0x88 | DRAW_OFFERED | rỗng | |
 | 0x89 | SPECTATOR_COUNT | binary 2 byte `u16` | |
 | 0x8A | HISTORY_RESULT | JSON `{pgn, moves[]}` | |
-| 0x8E | HEARTBEAT_ACK | rỗng | |
+| 0x8E | HEARTBEAT_ACK | rỗng | trả lời `HEARTBEAT`, echo lại `SEQ`. Client cũng gửi loại này khi server hỏi |
 | 0x8F | ERROR | JSON `{code, message}` | bảng A6 |
 
 ## A3. Mã hoá MOVE (client → server, 8 byte)
@@ -218,4 +218,5 @@ Rules service **stateless hoàn toàn**: mọi request tự mang FEN, nên thêm
 
 | Version | Ngày | Thay đổi |
 | --- | --- | --- |
+| 1.1 | **29/09/2026** | `HEARTBEAT`/`HEARTBEAT_ACK` thành **hai chiều**: server chủ động hỏi để **tự đo RTT** thay vì tin con số client khai (X33). Không đổi định dạng khung, chỉ đổi bên nào được phép gửi — client cũ vẫn kết nối được, chỉ là server không đo được RTT của nó. |
 | 1.0 | **22/09/2026** | Bản đầu tiên, đã đóng băng. Ba bản hiện thực (Java / Node / TypeScript) khớp từng byte trên `source/common-js/testvectors.json`. Mọi thay đổi sau mốc này phải tăng phiên bản và ghi vào bảng này. |

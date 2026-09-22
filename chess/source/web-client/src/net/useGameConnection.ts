@@ -167,6 +167,11 @@ export function useGameConnection(url: string) {
       case T.DRAW_OFFERED:
         trace('đối thủ xin hoà')
         break
+      case T.HEARTBEAT:
+        // Server hỏi để tự đo RTT (X33) — phải trả lời, nếu không server
+        // không có số liệu để bù độ trễ đồng hồ.
+        send(T.HEARTBEAT_ACK)
+        break
       case T.HEARTBEAT_ACK:
         break
       case T.ERROR: {

@@ -1,0 +1,389 @@
+package vn.dcgs.server.net;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import vn.dcgs.common.CgpException;
+import vn.dcgs.common.ErrorCode;
+import vn.dcgs.common.Frame;
+import vn.dcgs.common.FrameCodec;
+import vn.dcgs.common.Json;
+import vn.dcgs.common.MsgType;
+import vn.dcgs.server.Config;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Client goi Rules Service qua RVP.
+ *
+ * Ba co che deu nham vao mot con so duy nhat se do o thi nghiem E7: do tre
+ * them vao moi nuoc di vi da tach luat co sang mot tien trinh khac.
+ *
+ *  1. Pool ket noi persistent  - khong bat tay TCP lai cho tung nuoc di.
+ *  2. Cache theo FEN + nuoc di - khai cuoc lap lai rat nhieu giua cac van.
+ *  3. Circuit breaker           - instance chet thi ngung goi thay vi cho
+ *                                 timeout tung request mot (X39, X44).
+ *
+ * Moi request chiem mot ket noi trong suot thoi gian cho. Cach nay don gian
+ * va du nhanh o quy mo do an (chess.js tra loi trong vai ms); neu E7 cho thay
+ * day la nut that thi buoc tiep theo la pipelining nhieu request tren mot
+ * ket noi theo `SEQ`, dung nhu PROTOCOL.md §B da chua san cho.
+ */
+public final class RulesClient implements AutoCloseable {
+
+    /** Ket qua kiem tra luat - dich thang tu RULES_OK. */
+    public record Verdict(boolean legal, String fenAfter, String san, String uci,
+                          int flags, String status, int errorCode, String reason) {
+
+        public static Verdict illegal(int code, String reason) {
+            return new Verdict(false, null, null, null, 0, null, code, reason);
+        }
+
+        public boolean endsGame() {
+            return legal && !"ongoing".equals(status) && !"check".equals(status);
+        }
+    }
+
+    private final List<Endpoint> endpoints = new ArrayList<>();
+    private final int timeoutMs;
+    private final int retries;
+    private final boolean enabled;
+    private final Map<String, Verdict> cache;
+    private final AtomicLong hits = new AtomicLong();
+    private final AtomicLong misses = new AtomicLong();
+    private final AtomicLong failures = new AtomicLong();
+
+    public RulesClient(Config config) {
+        this.timeoutMs = config.getInt("rules.timeoutMs", 200);
+        this.retries = config.getInt("rules.retries", 2);
+        this.enabled = !"embedded".equals(config.get("rules.mode", "remote"));
+        int cacheSize = config.getInt("rules.cacheSize", 50_000);
+
+        // LRU don gian: LinkedHashMap theo thu tu truy cap, bo phan tu cu nhat.
+        this.cache = java.util.Collections.synchronizedMap(
+                new LinkedHashMap<>(1024, 0.75f, true) {
+                    @Override
+                    protected boolean removeEldestEntry(Map.Entry<String, Verdict> eldest) {
+                        return size() > cacheSize;
+                    }
+                });
+
+        int poolPerEndpoint = config.getInt("rules.poolPerEndpoint", 4);
+        int breakerFailures = config.getInt("rules.breaker.failures", 5);
+        long breakerOpenMs = config.getInt("rules.breaker.openMs", 15_000);
+        for (Config.Endpoint endpoint : config.getEndpoints("rules.endpoints", "127.0.0.1:6001")) {
+            endpoints.add(new Endpoint(endpoint.host(), endpoint.port(), poolPerEndpoint,
+                    breakerFailures, breakerOpenMs));
+        }
+    }
+
+    /**
+     * Kiem tra mot nuoc di.
+     *
+     * @throws CgpException 4001 khi khong con instance nao phuc vu duoc - ban
+     *         co se chuyen PAUSED chu khong mat (X44).
+     */
+    public Verdict validate(String fen, String from, String to, String promotion) {
+        if (!enabled) {
+            throw new CgpException(ErrorCode.RULES_UNAVAILABLE,
+                    "rules.mode=embedded chua duoc trien khai");
+        }
+
+        String key = fen + '|' + from + to + promotion;
+        Verdict cached = cache.get(key);
+        if (cached != null) {
+            hits.incrementAndGet();
+            return cached;
+        }
+        misses.incrementAndGet();
+
+        byte[] payload = Json.of(Map.of("fen", fen, "from", from, "to", to, "promo", promotion));
+        Frame reply = call(MsgType.RULES_VALIDATE, payload);
+        Verdict verdict = switch (reply.type()) {
+            case MsgType.RULES_OK -> {
+                JsonNode node = Json.parse(reply.payload());
+                yield new Verdict(true,
+                        node.get("fenAfter").asText(),
+                        node.get("san").asText(),
+                        node.get("uci").asText(),
+                        node.get("flags").asInt(),
+                        node.get("status").asText(),
+                        0, null);
+            }
+            case MsgType.RULES_ILLEGAL -> {
+                JsonNode node = Json.parse(reply.payload());
+                yield Verdict.illegal(node.path("code").asInt(ErrorCode.ILLEGAL_MOVE),
+                        node.path("reason").asText("nuoc di khong hop le"));
+            }
+            default -> {
+                JsonNode node = Json.parse(reply.payload());
+                throw new CgpException(ErrorCode.RULES_UNAVAILABLE,
+                        "rules service bao loi: " + node.path("message").asText());
+            }
+        };
+
+        // Chi cache ket qua hop le: mot nuoc sai co the do client gian lan, khong
+        // dang chiem cho, va phan phoi cua chung khong lap lai nhu khai cuoc.
+        if (verdict.legal()) {
+            cache.put(key, verdict);
+        }
+        return verdict;
+    }
+
+    public List<String> legalMoves(String fen) {
+        Frame reply = call(MsgType.RULES_LEGAL_MOVES, Json.of(Map.of("fen", fen)));
+        List<String> moves = new ArrayList<>();
+        for (JsonNode move : Json.parse(reply.payload()).get("moves")) {
+            moves.add(move.asText());
+        }
+        return moves;
+    }
+
+    /** Gui mot request, doi phan hoi, co retry sang instance khac. */
+    private Frame call(int type, byte[] payload) {
+        CgpException last = null;
+        // Khong thu lai chinh instance vua hong: neu no dang chet, thu lai chi
+        // ton them mot lan timeout nua.
+        java.util.Set<Endpoint> tried = new java.util.HashSet<>();
+        for (int attempt = 0; attempt <= retries; attempt++) {
+            Endpoint endpoint = pick(tried);
+            if (endpoint == null) {
+                failures.incrementAndGet();
+                throw new CgpException(ErrorCode.RULES_UNAVAILABLE,
+                        "khong con rules service nao kha dung");
+            }
+            try {
+                Frame reply = endpoint.exchange(type, payload, timeoutMs);
+                endpoint.recordSuccess();
+                return reply;
+            } catch (IOException | CgpException failure) {
+                tried.add(endpoint);
+                endpoint.recordFailure(failure instanceof java.net.ConnectException
+                        || failure instanceof java.net.SocketTimeoutException);
+                failures.incrementAndGet();
+                last = failure instanceof CgpException cgp ? cgp
+                        : new CgpException(ErrorCode.RULES_UNAVAILABLE, failure.getMessage());
+            }
+        }
+        throw last != null ? last
+                : new CgpException(ErrorCode.RULES_UNAVAILABLE, "khong goi duoc rules service");
+    }
+
+    /**
+     * Chon instance de goi.
+     *
+     * Chi dem so request dang cho la KHONG du: mot instance da chet luon co 0
+     * request dang cho nen se luon duoc chon - dung loi da gap that khi chay
+     * 20 van dong thoi. Vi vay thu tu uu tien la: (1) instance da tung tra loi
+     * duoc, (2) it request dang cho nhat.
+     */
+    private Endpoint pick(java.util.Set<Endpoint> excluded) {
+        Endpoint best = null;
+        for (Endpoint endpoint : endpoints) {
+            if (!endpoint.available() || excluded.contains(endpoint)) {
+                continue;
+            }
+            if (best == null
+                    || (endpoint.healthy() && !best.healthy())
+                    || (endpoint.healthy() == best.healthy()
+                        && endpoint.outstanding() < best.outstanding())) {
+                best = endpoint;
+            }
+        }
+        return best;
+    }
+
+    public String stats() {
+        long hit = hits.get();
+        long miss = misses.get();
+        long total = hit + miss;
+        return String.format("cache %d/%d (%.1f%%), loi %d, endpoint %s",
+                hit, total, total == 0 ? 0.0 : hit * 100.0 / total, failures.get(), endpoints);
+    }
+
+    @Override
+    public void close() {
+        endpoints.forEach(Endpoint::close);
+    }
+
+    // ------------------------------------------------------------- endpoint
+
+    /** Mot instance rules service: pool ket noi + circuit breaker rieng. */
+    private static final class Endpoint {
+
+        private final String host;
+        private final int port;
+        private final int poolSize;
+        private final int breakerThreshold;
+        private final long breakerOpenMs;
+
+        private final Deque<Link> idle = new ArrayDeque<>();
+        private int created;
+        private int outstanding;
+        private int consecutiveFailures;
+        private long openedUntil;
+        private boolean proven;
+
+        Endpoint(String host, int port, int poolSize, int breakerThreshold, long breakerOpenMs) {
+            this.host = host;
+            this.port = port;
+            this.poolSize = poolSize;
+            this.breakerThreshold = breakerThreshold;
+            this.breakerOpenMs = breakerOpenMs;
+        }
+
+        synchronized boolean available() {
+            return System.currentTimeMillis() >= openedUntil;
+        }
+
+        synchronized int outstanding() {
+            return outstanding;
+        }
+
+        synchronized void recordSuccess() {
+            consecutiveFailures = 0;
+            proven = true;
+        }
+
+        /** Da tung tra loi duoc it nhat mot lan ke tu khi khoi dong. */
+        synchronized boolean healthy() {
+            return proven && consecutiveFailures == 0;
+        }
+
+        synchronized void recordFailure(boolean cannotConnect) {
+            // Khong mo duoc ket noi nghia la tien trinh do khong chay: mo mach
+            // ngay, khong can doi du so lan that bai.
+            if (cannotConnect) {
+                openedUntil = System.currentTimeMillis() + breakerOpenMs;
+                consecutiveFailures = 0;
+                return;
+            }
+            if (++consecutiveFailures >= breakerThreshold) {
+                // Mo mach: ngung goi mot luc thay vi cho timeout tung request (X39).
+                openedUntil = System.currentTimeMillis() + breakerOpenMs;
+                consecutiveFailures = 0;
+                System.err.printf("Rules %s:%d tam ngung %d ms (qua nhieu loi lien tiep)%n",
+                        host, port, breakerOpenMs);
+            }
+        }
+
+        Frame exchange(int type, byte[] payload, int timeoutMs) throws IOException {
+            Link link = borrow(timeoutMs);
+            synchronized (this) {
+                outstanding++;
+            }
+            try {
+                Frame reply = link.exchange(type, payload);
+                release(link);
+                return reply;
+            } catch (IOException | CgpException failure) {
+                link.close();                 // ket noi hong thi bo han, khong tra lai pool
+                synchronized (this) {
+                    created--;
+                }
+                throw failure;
+            } finally {
+                synchronized (this) {
+                    outstanding--;
+                }
+            }
+        }
+
+        private Link borrow(int timeoutMs) throws IOException {
+            synchronized (this) {
+                Link link = idle.pollFirst();
+                if (link != null) {
+                    return link;
+                }
+                if (created >= poolSize) {
+                    // Pool het: mo them mot ket noi tam thoi con hon de nuoc di doi.
+                    return new Link(host, port, timeoutMs);
+                }
+                created++;
+            }
+            try {
+                return new Link(host, port, timeoutMs);
+            } catch (IOException failure) {
+                synchronized (this) {
+                    created--;
+                }
+                throw failure;
+            }
+        }
+
+        private synchronized void release(Link link) {
+            if (idle.size() < poolSize) {
+                idle.addLast(link);
+            } else {
+                link.close();
+                created--;
+            }
+        }
+
+        synchronized void close() {
+            idle.forEach(Link::close);
+            idle.clear();
+        }
+
+        @Override
+        public String toString() {
+            return host + ":" + port + (available() ? "" : "(dang mo mach)");
+        }
+    }
+
+    /** Mot ket noi TCP toi rules service, dung request/response tuan tu. */
+    private static final class Link {
+
+        private final Socket socket;
+        private final InputStream in;
+        private final OutputStream out;
+        private final FrameCodec.Decoder decoder = new FrameCodec.Decoder();
+        private final byte[] buffer = new byte[8192];
+        private int seq = 1;
+
+        Link(String host, int port, int timeoutMs) throws IOException {
+            socket = new Socket();
+            socket.connect(new InetSocketAddress(host, port), timeoutMs);
+            socket.setSoTimeout(timeoutMs);
+            socket.setTcpNoDelay(true);
+            in = socket.getInputStream();
+            out = socket.getOutputStream();
+        }
+
+        Frame exchange(int type, byte[] payload) throws IOException {
+            java.nio.ByteBuffer frame = FrameCodec.encode(type, seq++, payload);
+            byte[] bytes = new byte[frame.remaining()];
+            frame.get(bytes);
+            out.write(bytes);
+            out.flush();
+
+            for (;;) {
+                int count = in.read(buffer);
+                if (count < 0) {
+                    throw new IOException("rules service dong ket noi");
+                }
+                List<Frame> frames = decoder.feed(buffer, 0, count);
+                if (!frames.isEmpty()) {
+                    return frames.get(0);
+                }
+            }
+        }
+
+        void close() {
+            try {
+                socket.close();
+            } catch (IOException ignored) {
+                // Dang bo ket noi nay di.
+            }
+        }
+    }
+}

@@ -35,25 +35,27 @@ Hai protocol nhị phân tự thiết kế: **CGP** (client↔server) và **RVP*
 | N5 | Session resume, replay theo `ply` | Rớt mạng = mất ván | E5 |
 | N6 | Protocol độc lập ngôn ngữ (Java ↔ Node) | – | Interop test |
 
-## Tiến độ (cập nhật 22/09/2026)
+## Tiến độ (cập nhật 29/09/2026)
 
-**Mốc M1 (hạn 28/09): ĐẠT.**
+**M1 (28/09): ĐẠT. M2 (05/10): ĐẠT — sớm 6 ngày.**
 
 | Hạng mục | Trạng thái | Bằng chứng |
 | --- | --- | --- |
-| `PROTOCOL.md` v1.0 đóng băng | Xong | Changelog ghi ngày 22/09/2026 |
-| Codec 3 ngôn ngữ + interop | Xong | Java 20 test, Node 9 test, TS 6/6 vector — chung `source/common-js/testvectors.json` |
-| Database + dữ liệu mẫu | Xong | PostgreSQL 18, 5 bảng, 406 tài khoản |
-| Maven multi-module | Xong | 3 module, build ra `dcgs-server.jar`, `dcgs-client.jar` |
-| Server accept nhiều kết nối | Xong | 50 bot đăng nhập đồng thời, 50/50 thành công |
-| Client Java LOGIN | Xong | `dcgs-client.jar` → LOGIN_OK, RTT 2 ms |
-| Rules service trả RULES_OK cho e2e4 | Xong | 10/10 test RVP |
-| Bot sinh tải | Xong | `bot.js --bots 50`, ghi CSV |
-| DAO user/session/game/move | Xong | `Database.java` |
-| Web client 3 chế độ | Xong (vượt kế hoạch) | `npm run check:app` |
-| Docker | Xong (vượt kế hoạch) | compose 6 service |
+| `PROTOCOL.md` v1.1 | Xong | v1.0 đóng băng 22/09; v1.1 thêm heartbeat hai chiều để server tự đo RTT |
+| Codec 3 ngôn ngữ + interop | Xong | Java 20 test, Node 9 test, TS 6/6 vector — chung `testvectors.json` |
+| Database + DAO | Xong | PostgreSQL 18, 5 bảng, pool JDBC có timeout |
+| Server NIO: accept, LOGIN, RESUME, heartbeat | Xong | 50 bot đăng nhập đồng thời, 50/50 |
+| Rules service (RVP) | Xong | 10/10 test, bắt đúng X27 và X29 |
+| **RulesClient: pool + cache + circuit breaker** | Xong | Kill 1 instance giữa tải: 10/10 ván vẫn xong |
+| **Matchmaking + GameActor + đồng hồ server** | Xong | 20 ván đồng thời, 5767 nước, 0 lỗi |
+| **GAME_OVER + Elo + PGN + lưu DB** | Xong | 4 loại kết thúc: chiếu hết, hết nước, hoà thiếu quân, đầu hàng |
+| Bot đánh hết ván | Xong | `bot.js --play --games 20` |
+| Web client 3 chế độ | Xong | `npm run check:app` |
+| Docker | Xong | compose 6 service |
 
-Chưa làm (tuần 2 theo `PLAN.md`): matchmaking, GameActor, đồng hồ server, gateway WebSocket, chế độ `server.io=blocking` làm baseline cho E2.
+Số đo sơ bộ (1 máy, loopback, 20 ván đồng thời): move RTT **p50 14 ms / p95 33 ms / p99 47 ms**, LOGIN p50 234 ms. Đây chưa phải số liệu chính thức của E1 — còn thiếu warm-up, lặp 3 lần và hạ mức log (X55).
+
+Chưa làm (tuần 3): gateway WebSocket cho web client, RESUME vào ván đang dở kèm replay, spectator, chế độ `server.io=blocking` làm baseline E2, delay proxy.
 
 Việc nhóm phải tự làm: điền tên/MSSV/giảng viên vào `PROPOSAL.md` rồi gửi giảng viên xác nhận.
 
@@ -66,11 +68,14 @@ cd source/rules-service && npm install && node index.js --port 6001
 # 2. Game server (terminal khác)
 cd source/server && java -jar target/dcgs-server.jar --config config.properties
 
+# 2b. Rules service thứ hai (để thấy cơ chế chịu lỗi)
+cd source/rules-service && node index.js --port 6002
+
 # 3. Client CLI đăng nhập
 cd source/client-cli && java -jar target/dcgs-client.jar --user alice --pass chess123
 
-# 4. 50 bot đăng nhập đồng thời
-cd source/bot && node bot.js --bots 50
+# 4. 20 ván bot đánh hết, ghi CSV
+cd source/bot && node bot.js --play --games 20 --tc 60+0 --out ../../statics/results/e1.csv
 ```
 
 ## Chạy (điền khi có code)

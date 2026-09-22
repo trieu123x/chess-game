@@ -72,7 +72,7 @@ Sơ đồ export ra `statics/architecture.png`, `statics/protocol.png`.
 [Game thread pool]  size = số core
    └─ GameActor.run(): mỗi gameId có hàng đợi riêng, thực thi TUẦN TỰ
         → không cần synchronized trên bàn cờ
-        → gọi RulesClient (bất đồng bộ, callback quay lại chính actor đó)
+        → gọi RulesClient (chặn trên chính thread của game pool, timeout 200 ms)
 
 [Scheduler thread]  ScheduledExecutorService, tick 100 ms
    ├─ quét hết giờ  → GAME_OVER(timeout)
@@ -122,7 +122,7 @@ WAITING ──────────────────► IN_PROGRESS �
 
 ## 6. Cơ chế gọi Rules Service
 
-* **Pool**: mặc định 4 kết nối persistent tới mỗi instance, request pipelined theo `SEQ` làm correlation id.
+* **Pool**: mặc định 4 kết nối persistent tới mỗi instance. Bản hiện tại dùng **một request tại một thời điểm trên mỗi kết nối** (mượn — hỏi — trả), chạy trên thread của `GameActor` nên không chặn thread selector. Pipelining nhiều request theo `SEQ` đã được chừa sẵn trong protocol và sẽ làm nếu E7 cho thấy đây là nút thắt.
 * **Chọn instance**: least-outstanding-requests.
 * **Cache**: `LRU<fenKey+move, RulesResult>` 50k entry. Khai cuộc trùng lặp nhiều → hit rate cao, đo ở E7.
 * **Timeout**: 200 ms/request → retry instance khác (tối đa 2 lần).

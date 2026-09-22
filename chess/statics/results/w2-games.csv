@@ -1,0 +1,7 @@
+username,color,login_ms,plies,result,reason,move_p50_ms,rejects,bytes_in,bytes_out,error
+bot_1,w,7.86,117,1-0,checkmate,7.79,0,4278,1086,
+bot_2,b,16.7,376,1/2-1/2,draw_insufficient,4.48,0,12453,3279,
+bot_3,b,16.99,346,1/2-1/2,stalemate,2.28,0,11528,3024,
+bot_4,b,15.46,117,1-0,checkmate,6.38,0,4280,1069,
+bot_5,w,16.31,346,1/2-1/2,stalemate,2.01,0,11529,3024,
+bot_6,w,15.67,376,1/2-1/2,draw_insufficient,3,0,12453,3279,

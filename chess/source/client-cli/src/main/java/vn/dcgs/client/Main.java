@@ -170,7 +170,13 @@ public final class Main {
             bytesOut += bytes.length;
         }
 
-        /** Doc toi khi co it nhat mot frame tron ven — day la cho TCP hay lam nguoi ta nham. */
+        /**
+         * Doc toi khi co mot frame ma ben goi quan tam.
+         *
+         * Server co the chen HEARTBEAT bat cu luc nao (protocol v1.1) de tu do
+         * RTT, nen khong duoc gia dinh "gui gi thi nhan ngay cai do" — phai tra
+         * loi roi doc tiep.
+         */
         Frame receive() throws IOException {
             while (ready.isEmpty()) {
                 int count = in.read(buffer);
@@ -178,8 +184,13 @@ public final class Main {
                     throw new IOException("server dong ket noi");
                 }
                 bytesIn += count;
-                List<Frame> frames = decoder.feed(buffer, 0, count);
-                ready.addAll(frames);
+                for (Frame frame : decoder.feed(buffer, 0, count)) {
+                    if (frame.type() == MsgType.HEARTBEAT) {
+                        send(MsgType.HEARTBEAT_ACK, new byte[0]);
+                    } else {
+                        ready.addLast(frame);
+                    }
+                }
             }
             return ready.pollFirst();
         }
