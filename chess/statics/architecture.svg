@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="780" viewBox="0 0 1180 780" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="1180" height="780" fill="#ffffff"/>
+<defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+  </marker>
+  <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+  </marker>
+</defs>
+<text x="590" y="40" font-size="23" fill="#111827" text-anchor="middle" font-weight="700">DCGS — Kien truc he thong</text>
+<text x="590" y="63" font-size="13.5" fill="#6b7280" text-anchor="middle" font-weight="400">Ba tien trinh, hai giao thuc nhi phan tu thiet ke, mot nguon chan ly duy nhat</text>
+<text x="60" y="112" font-size="14" fill="#6b7280" text-anchor="start" font-weight="600">Client</text>
+<rect x="60" y="126" width="176" height="62" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/>
+<text x="148" y="154" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Web Client</text>
+<text x="148" y="172" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">React + TS</text>
+<rect x="60" y="200" width="176" height="62" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/>
+<text x="148" y="228" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Khan gia</text>
+<text x="148" y="246" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">trang web</text>
+<rect x="60" y="296" width="176" height="62" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/>
+<text x="148" y="324" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Java CLI Client</text>
+<text x="148" y="342" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">TCP thuan</text>
+<rect x="60" y="386" width="176" height="62" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/>
+<text x="148" y="414" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Bot sinh tai</text>
+<text x="148" y="432" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">Node, do E1..E5</text>
+<rect x="300" y="132" width="150" height="124" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.6"/>
+<text x="375" y="191" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Web Gateway</text>
+<text x="375" y="209" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">WS &lt;-&gt; TCP</text>
+<text x="375" y="272" font-size="10.5" fill="#6b7280" text-anchor="middle" font-weight="400">mang nguyen frame CGP</text>
+<text x="375" y="288" font-size="10.5" fill="#6b7280" text-anchor="middle" font-weight="400">khong giu state (X60)</text>
+<rect x="300" y="388" width="150" height="58" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.6"/>
+<text x="375" y="414" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Delay proxy</text>
+<text x="375" y="432" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">bom tre, E4</text>
+<rect x="520" y="112" width="380" height="410" rx="12" fill="#fbfdff" stroke="#2563eb" stroke-width="2"/>
+<text x="710" y="138" font-size="15" fill="#2563eb" text-anchor="middle" font-weight="700">GAME SERVER (Java 17)</text>
+<rect x="542" y="154" width="336" height="94" rx="8" fill="#ffffff" stroke="#9ca3af" stroke-width="1.6"/>
+<text x="710" y="198" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Network Layer</text>
+<text x="710" y="216" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">Acceptor · Selector · FrameCodec</text>
+<text x="710" y="232" font-size="10.5" fill="#6b7280" text-anchor="middle" font-weight="400">ConnectionManager · Heartbeat · Backpressure</text>
+<rect x="542" y="262" width="336" height="110" rx="8" fill="#ffffff" stroke="#9ca3af" stroke-width="1.6"/>
+<text x="710" y="289" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">Game Layer</text>
+<text x="710" y="311" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">SessionManager · Matchmaker</text>
+<text x="710" y="331" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">GameActor (mot hang doi moi ban, chay tuan tu)</text>
+<text x="710" y="351" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">ClockEngine · Elo · PGN</text>
+<rect x="542" y="386" width="336" height="62" rx="8" fill="#ffffff" stroke="#9ca3af" stroke-width="1.6"/>
+<text x="710" y="414" font-size="14" fill="#111827" text-anchor="middle" font-weight="600">RulesClient</text>
+<text x="710" y="432" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">pool · cache LRU · circuit breaker</text>
+<rect x="542" y="458" width="336" height="50" rx="8" fill="#ffffff" stroke="#9ca3af" stroke-width="1.6"/>
+<text x="710" y="480" font-size="13" fill="#111827" text-anchor="middle" font-weight="600">DbWriter</text>
+<text x="710" y="498" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">hang doi co chan — JDBC khong bao gio chan game thread (X51)</text>
+<rect x="960" y="200" width="160" height="58" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="1.6"/>
+<text x="1040" y="226" font-size="13" fill="#111827" text-anchor="middle" font-weight="600">Rules Service #1</text>
+<text x="1040" y="244" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">Node + chess.js</text>
+<rect x="960" y="272" width="160" height="58" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="1.6"/>
+<text x="1040" y="298" font-size="13" fill="#111827" text-anchor="middle" font-weight="600">Rules Service #2</text>
+<text x="1040" y="316" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">stateless, N ban</text>
+<rect x="960" y="452" width="160" height="58" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.6"/>
+<text x="1040" y="478" font-size="13" fill="#111827" text-anchor="middle" font-weight="600">PostgreSQL 18</text>
+<text x="1040" y="496" font-size="11.5" fill="#6b7280" text-anchor="middle" font-weight="400">5 bang</text>
+<line x1="236" y1="157" x2="298" y2="165" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="236" y1="231" x2="298" y2="220" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="450" y1="194" x2="518" y2="200" stroke="#2563eb" stroke-width="1.6" marker-end="url(#ab)"/>
+<line x1="236" y1="327" x2="518" y2="300" stroke="#2563eb" stroke-width="1.6" marker-end="url(#ab)"/>
+<line x1="236" y1="417" x2="298" y2="417" stroke="#d97706" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="450" y1="417" x2="518" y2="400" stroke="#d97706" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="902" y1="410" x2="958" y2="240" stroke="#059669" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="902" y1="418" x2="958" y2="305" stroke="#059669" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="902" y1="484" x2="958" y2="481" stroke="#dc2626" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="242" y="144" font-size="11" fill="#7c3aed" text-anchor="start" font-weight="600" font-family="ui-monospace, Consolas, monospace">CGP/WS</text>
+<text x="456" y="182" font-size="11" fill="#2563eb" text-anchor="start" font-weight="600" font-family="ui-monospace, Consolas, monospace">CGP/TCP</text>
+<text x="330" y="306" font-size="11" fill="#2563eb" text-anchor="start" font-weight="600" font-family="ui-monospace, Consolas, monospace">CGP/TCP</text>
+<text x="930" y="458" font-size="11" fill="#059669" text-anchor="middle" font-weight="600" font-family="ui-monospace, Consolas, monospace">RVP/TCP</text>
+<text x="915" y="470" font-size="11" fill="#dc2626" text-anchor="start" font-weight="600" font-family="ui-monospace, Consolas, monospace">JDBC</text>
+<rect x="60" y="566" width="1060" height="52" rx="8" fill="#f1f5f9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="78" y="588" font-size="12.5" fill="#111827" text-anchor="start" font-weight="700">Server la nguon chan ly duy nhat</text>
+<text x="78" y="606" font-size="11.5" fill="#6b7280" text-anchor="start" font-weight="400">client khong quyet dinh nuoc di hop le, cung khong quyet dinh minh tieu bao nhieu gio</text>
+<rect x="60" y="630" width="1060" height="52" rx="8" fill="#f1f5f9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="78" y="652" font-size="12.5" fill="#111827" text-anchor="start" font-weight="700">Mot ban co = mot hang doi tuan tu</text>
+<text x="78" y="670" font-size="11.5" fill="#6b7280" text-anchor="start" font-weight="400">khong can khoa tren ban co; hai message cung ban khong bao gio chay song song</text>
+<rect x="60" y="694" width="1060" height="52" rx="8" fill="#f1f5f9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="78" y="716" font-size="12.5" fill="#111827" text-anchor="start" font-weight="700">Loi bi co lap theo bien</text>
+<text x="78" y="734" font-size="11.5" fill="#6b7280" text-anchor="start" font-weight="400">mot client hong chi lam hong ket noi cua chinh no; gateway chet chi mat nguoi xem</text>
+</svg>

@@ -1,0 +1,9 @@
+compensation,delay_ms,direct_drift_ms,proxied_drift_ms,proxied_total_drift_ms,moves,runs
+false,0,1.31,26.28,914,40,3
+false,50,1.26,120.62,4790,40,3
+false,150,1.26,320.4,12629,40,3
+false,300,1.19,614.59,24613,40,2
+true,0,-2.64,21.02,746,40,3
+true,50,-2.83,61.13,2398,40,3
+true,150,-2.47,156.62,6198,40,3
+true,300,-2.65,415,16575,40,2

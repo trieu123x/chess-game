@@ -1,0 +1,6 @@
+scenario,rules_instances,p50_ms,p95_ms,p99_ms,runs
+embedded,0,12.73,32.65,42.89,3
+remote-1-khong-cache,1,13.9,33.04,42.78,3
+remote-1-co-cache,1,13.39,31.6,42.11,3
+remote-2-co-cache,2,13.37,33.9,43.68,3
+giet-1-instance,1,-,-,-,10 / 10

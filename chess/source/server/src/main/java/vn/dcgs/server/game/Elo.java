@@ -6,7 +6,10 @@ package vn.dcgs.server.game;
  * Diem ky vong: E = 1 / (1 + 10^((Rb - Ra)/400))
  * Diem moi:     R' = R + K * (S - E),  S = 1 / 0.5 / 0
  *
- * Lam tron ve phia nguoi thang de tong diem khong bi tut dan sau nhieu van.
+ * Tong diem gan nhu duoc bao toan: vi E(a,b) + E(b,a) = 1 va tong diem tran
+ * bang 1, hai delta luon doi nhau truoc khi lam tron. Sau khi lam tron thi co
+ * the lech 1 diem o dung truong hop phan le bang .5 - hiem, va khong tich luy
+ * theo huong nao ca.
  */
 public final class Elo {
 

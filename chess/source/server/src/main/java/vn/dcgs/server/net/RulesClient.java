@@ -38,25 +38,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * day la nut that thi buoc tiep theo la pipelining nhieu request tren mot
  * ket noi theo `SEQ`, dung nhu PROTOCOL.md §B da chua san cho.
  */
-public final class RulesClient implements AutoCloseable {
+public final class RulesClient implements RulesEngine {
 
-    /** Ket qua kiem tra luat - dich thang tu RULES_OK. */
-    public record Verdict(boolean legal, String fenAfter, String san, String uci,
-                          int flags, String status, int errorCode, String reason) {
-
-        public static Verdict illegal(int code, String reason) {
-            return new Verdict(false, null, null, null, 0, null, code, reason);
-        }
-
-        public boolean endsGame() {
-            return legal && !"ongoing".equals(status) && !"check".equals(status);
-        }
-    }
 
     private final List<Endpoint> endpoints = new ArrayList<>();
     private final int timeoutMs;
     private final int retries;
-    private final boolean enabled;
+    private final boolean cacheEnabled;
     private final Map<String, Verdict> cache;
     private final AtomicLong hits = new AtomicLong();
     private final AtomicLong misses = new AtomicLong();
@@ -65,7 +53,7 @@ public final class RulesClient implements AutoCloseable {
     public RulesClient(Config config) {
         this.timeoutMs = config.getInt("rules.timeoutMs", 200);
         this.retries = config.getInt("rules.retries", 2);
-        this.enabled = !"embedded".equals(config.get("rules.mode", "remote"));
+        this.cacheEnabled = config.getBoolean("rules.cache", true);
         int cacheSize = config.getInt("rules.cacheSize", 50_000);
 
         // LRU don gian: LinkedHashMap theo thu tu truy cap, bo phan tu cu nhat.
@@ -92,17 +80,18 @@ public final class RulesClient implements AutoCloseable {
      * @throws CgpException 4001 khi khong con instance nao phuc vu duoc - ban
      *         co se chuyen PAUSED chu khong mat (X44).
      */
+    @Override
     public Verdict validate(String fen, String from, String to, String promotion) {
-        if (!enabled) {
-            throw new CgpException(ErrorCode.RULES_UNAVAILABLE,
-                    "rules.mode=embedded chua duoc trien khai");
-        }
-
+        // Khoa cache la FEN DAY DU (gom quyen nhap thanh, o bat tot qua duong,
+        // halfmove) cong nuoc di. Rut gon FEN de tiet kiem bo nho se tra ve ket
+        // qua sai cho dung nhung the co trong giong nhau ma khac quyen (X42).
         String key = fen + '|' + from + to + promotion;
-        Verdict cached = cache.get(key);
-        if (cached != null) {
-            hits.incrementAndGet();
-            return cached;
+        if (cacheEnabled) {
+            Verdict cached = cache.get(key);
+            if (cached != null) {
+                hits.incrementAndGet();
+                return cached;
+            }
         }
         misses.incrementAndGet();
 
@@ -133,10 +122,36 @@ public final class RulesClient implements AutoCloseable {
 
         // Chi cache ket qua hop le: mot nuoc sai co the do client gian lan, khong
         // dang chiem cho, va phan phoi cua chung khong lap lai nhu khai cuoc.
-        if (verdict.legal()) {
+        if (cacheEnabled && verdict.legal()) {
             cache.put(key, verdict);
         }
         return verdict;
+    }
+
+    /**
+     * Het gio: ben con lai co du quan de chieu het khong? (X29)
+     *
+     * Khong dung cache: cau hoi nay chi phat sinh mot lan moi van, cache chi
+     * lam ban bo nho.
+     */
+    @Override
+    public boolean insufficientMaterialFor(String fen, String side) {
+        Frame reply = call(MsgType.RULES_MATERIAL, Json.of(Map.of("fen", fen, "side", side)));
+        if (reply.type() != MsgType.RULES_OK) {
+            throw new CgpException(ErrorCode.RULES_UNAVAILABLE, "khong hoi duoc tinh trang quan");
+        }
+        return !Json.parse(reply.payload()).path("sufficient").asBoolean(true);
+    }
+
+    /** Con it nhat mot instance khong bi mo mach - dung de hoi lai van dang PAUSED. */
+    @Override
+    public boolean available() {
+        for (Endpoint endpoint : endpoints) {
+            if (endpoint.available()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public List<String> legalMoves(String fen) {
@@ -202,6 +217,7 @@ public final class RulesClient implements AutoCloseable {
         return best;
     }
 
+    @Override
     public String stats() {
         long hit = hits.get();
         long miss = misses.get();

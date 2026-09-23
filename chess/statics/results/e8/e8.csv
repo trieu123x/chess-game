@@ -1,0 +1,3 @@
+transport,spectators,messages,socket_bytes,cgp_bytes,bytes_per_msg,overhead_bytes_per_msg,p50_ms,p95_ms,samples
+tcp,50,5076,95776,95776,18.87,0,1.78,4.05,1449
+websocket,50,3574,86513,79265,24.21,2.03,2.51,5.28,1424

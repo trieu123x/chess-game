@@ -5,17 +5,21 @@ import vn.dcgs.common.FrameCodec;
 import vn.dcgs.common.Json;
 import vn.dcgs.common.MoveCodec;
 import vn.dcgs.common.MsgType;
+import vn.dcgs.common.WireFormat;
 import vn.dcgs.server.data.Database;
+import vn.dcgs.server.data.DbWriter;
 import vn.dcgs.server.net.Connection;
-import vn.dcgs.server.net.RulesClient;
+import vn.dcgs.server.net.RulesEngine;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -28,6 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * nao trong toan bo logic ben duoi — thay vi rai khoa khap noi roi hy vong
  * khong bo sot cho nao.
  *
+ * Hai he qua cua mo hinh do, ca hai deu la quy tac cung:
+ *  1. Khong duoc chan lau tren thread nay. Moi thao tac database di qua
+ *     {@link DbWriter} (ngoai le X51).
+ *  2. Moi thay doi trang thai ban co chi duoc xay ra ben trong mot task da
+ *     `submit`, khong bao gio tu thread mang.
+ *
  * Server la nguon chan ly: client khong duoc quyet dinh nuoc di co hop le hay
  * khong, va cung khong duoc quyet dinh minh da tieu bao nhieu thoi gian.
  */
@@ -36,11 +46,50 @@ public final class GameActor {
     /** Trang thai ban co, khop voi CHECK trong bang `games`. */
     public enum Status { IN_PROGRESS, PAUSED, FINISHED }
 
+    /**
+     * Mot ben choi.
+     *
+     * `connection` doi duoc vi noi lai sau khi rot mang (dong gop N5) chinh la
+     * viec gan mot socket MOI vao cung mot nguoi choi cua cung mot ban co.
+     */
+    public static final class Player {
+
+        private final long userId;
+        private final String username;
+        private final int elo;
+        private volatile Connection connection;
+
+        public Player(long userId, String username, int elo, Connection connection) {
+            this.userId = userId;
+            this.username = username;
+            this.elo = elo;
+            this.connection = connection;
+        }
+
+        public long userId() {
+            return userId;
+        }
+
+        public String username() {
+            return username;
+        }
+
+        public int elo() {
+            return elo;
+        }
+
+        public Connection connection() {
+            return connection;
+        }
+    }
+
     private final long gameId;
     private final Executor pool;
-    private final RulesClient rules;
+    private final RulesEngine rules;
     private final Database database;
+    private final DbWriter dbWriter;
     private final GameService service;
+    private final WireFormat format;
 
     private final Player white;
     private final Player black;
@@ -48,6 +97,8 @@ public final class GameActor {
     private final int incrementMs;
     private final boolean compensateLatency;
     private final long compensationCapMs;
+    private final int actorQueueMax;
+    private final int drawCooldownPlies;
 
     private final Deque<Runnable> mailbox = new ArrayDeque<>();
     private final AtomicBoolean draining = new AtomicBoolean();
@@ -55,6 +106,14 @@ public final class GameActor {
     private String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     private final List<String> sanMoves = new ArrayList<>();
     private final List<String> uciMoves = new ArrayList<>();
+    /**
+     * Payload MOVE_APPLIED da gui cho tung nuoc, index = ply - 1.
+     *
+     * Day la nguon PHAT LAI khi mot nguoi noi lai giua ván (dong gop N5): phat
+     * lai dung nhung byte da gui lan dau, khong dung lai tu FEN, nen client
+     * nhan duoc chuoi su kien y het nhu chua tung mat ket noi.
+     */
+    private final List<byte[]> appliedPayloads = new ArrayList<>();
     private int ply;
     private long clockWhiteMs;
     private long clockBlackMs;
@@ -64,23 +123,30 @@ public final class GameActor {
     private int drawOfferPly = -1_000;
     private long pausedSince;
     private long pausedUserId;
+    private String pauseReason = "";
+    private long droppedFromQueue;
 
-    public record Player(long userId, String username, int elo, Connection connection) {
-    }
+    /** Khan gia. Khong duoc lam cham nguoi choi trong bat ky hoan canh nao (X58). */
+    private final Set<Connection> spectators = ConcurrentHashMap.newKeySet();
 
     public GameActor(long gameId, Player white, Player black, String timeControl,
-                     int initialMs, int incrementMs, boolean compensateLatency, long compensationCapMs,
-                     Executor pool, RulesClient rules, Database database, GameService service) {
+                     int initialMs, int incrementMs, GameService.Settings settings,
+                     Executor pool, RulesEngine rules, Database database, DbWriter dbWriter,
+                     GameService service) {
         this.gameId = gameId;
         this.white = white;
         this.black = black;
         this.timeControl = timeControl;
         this.incrementMs = incrementMs;
-        this.compensateLatency = compensateLatency;
-        this.compensationCapMs = compensationCapMs;
+        this.compensateLatency = settings.compensateLatency();
+        this.compensationCapMs = settings.compensationCapMs();
+        this.actorQueueMax = settings.actorQueueMax();
+        this.drawCooldownPlies = settings.drawCooldownPlies();
+        this.format = settings.format();
         this.pool = pool;
         this.rules = rules;
         this.database = database;
+        this.dbWriter = dbWriter;
         this.service = service;
         this.clockWhiteMs = initialMs;
         this.clockBlackMs = initialMs;
@@ -94,12 +160,37 @@ public final class GameActor {
         return status;
     }
 
+    public Player white() {
+        return white;
+    }
+
+    public Player black() {
+        return black;
+    }
+
+    public int ply() {
+        return ply;
+    }
+
+    public String timeControl() {
+        return timeControl;
+    }
+
+    public int spectatorCount() {
+        return spectators.size();
+    }
+
+    public boolean hasPlayer(long userId) {
+        return white.userId() == userId || black.userId() == userId;
+    }
+
     /** Xep mot viec vao hang doi cua ban nay. An toan tu bat ky thread nao. */
     public void submit(Runnable task) {
         synchronized (mailbox) {
-            if (mailbox.size() > 1_000) {
+            if (mailbox.size() > actorQueueMax) {
                 // Hang doi day nghia la mot client dang spam (X53): bo message
                 // cua chinh no, cac ban khac khong bi anh huong.
+                droppedFromQueue++;
                 return;
             }
             mailbox.addLast(task);
@@ -170,28 +261,39 @@ public final class GameActor {
     public void onMove(Connection from, MoveCodec.Move move, long receivedAt) {
         submit(() -> {
             if (status == Status.FINISHED) {
+                // Nuoc di chay dua voi het gio: van da xong thi khong doi gi nua (X24).
                 sendError(from, ErrorCode.GAME_ALREADY_OVER, "van da ket thuc");
+                logSuspicious(from, ErrorCode.GAME_ALREADY_OVER, move);
                 return;
             }
             Player mover = playerOf(from);
             if (mover == null) {
+                // Gui nuoc di cho van cua nguoi khac (X32) - du lieu tho cua E6.
                 sendError(from, ErrorCode.NOT_A_PLAYER, "ban khong phai nguoi choi cua van nay");
+                logSuspicious(from, ErrorCode.NOT_A_PLAYER, move);
+                return;
+            }
+            if (status == Status.PAUSED) {
+                sendError(from, ErrorCode.RULES_UNAVAILABLE, "van dang tam dung: " + pauseReason);
                 return;
             }
             boolean whiteToMove = ply % 2 == 0;
             if ((mover == white) != whiteToMove) {
                 sendError(from, ErrorCode.NOT_YOUR_TURN, "chua den luot ban");
+                logSuspicious(from, ErrorCode.NOT_YOUR_TURN, move);
                 return;
             }
             if (move.ply() != ply) {
-                // Nuoc di den muon hoac gui trung (X24/X: idempotent theo ply).
+                // Nuoc di den muon hoac gui trung: ap dung nuoc di la idempotent
+                // theo `ply` nen khong bao gio ap hai lan (X38).
                 send(from, MsgType.MOVE_REJECTED, Json.of(Map.of(
                         "code", ErrorCode.STALE_PLY, "reason", "nuoc di khong con dung luot",
                         "expectedPly", ply)));
+                logSuspicious(from, ErrorCode.STALE_PLY, move);
                 return;
             }
 
-            RulesClient.Verdict verdict;
+            RulesEngine.Verdict verdict;
             try {
                 verdict = rules.validate(fen, move.from(), move.to(),
                         move.promotion() == 0 ? "" : String.valueOf(MoveCodec.promotionLetter(move.promotion())));
@@ -204,12 +306,14 @@ public final class GameActor {
             if (!verdict.legal()) {
                 send(from, MsgType.MOVE_REJECTED, Json.of(Map.of(
                         "code", verdict.errorCode(), "reason", verdict.reason(), "expectedPly", ply)));
-                database.logRejected(gameId, mover.userId(), verdict.errorCode(),
-                        move.from() + move.to() + " tren " + fen);
+                dbWriter.submitBestEffort("rejected_move", () -> database.logRejected(
+                        gameId, mover.userId(), verdict.errorCode(),
+                        move.from() + move.to() + " tren " + fen));
                 return;
             }
 
             // Tru gio theo moc server nhan duoc, co bu mot nua RTT (dong gop N2).
+            // RTT la do server tu do qua chu trinh heartbeat, khong phai so client khai (X33).
             long elapsed = receivedAt - turnStartedAt;
             if (compensateLatency) {
                 elapsed -= Math.min(from.rttMs() / 2, compensationCapMs);
@@ -218,7 +322,13 @@ public final class GameActor {
 
             long remaining = (mover == white ? clockWhiteMs : clockBlackMs) - elapsed;
             if (remaining <= 0) {
-                finish(mover == white ? "0-1" : "1-0", "timeout");
+                // Kep ve 0 thay vi gui so am cho client (X36).
+                if (mover == white) {
+                    clockWhiteMs = 0;
+                } else {
+                    clockBlackMs = 0;
+                }
+                finishByTimeout(mover);
                 return;
             }
             remaining += incrementMs;
@@ -228,7 +338,8 @@ public final class GameActor {
                 clockBlackMs = remaining;
             }
 
-            fen = verdict.fenAfter();
+            String fenAfter = verdict.fenAfter();
+            fen = fenAfter;
             ply++;
             sanMoves.add(verdict.san());
             uciMoves.add(verdict.uci());
@@ -236,18 +347,46 @@ public final class GameActor {
             drawOfferBy = 0;
 
             int processMs = (int) Math.min(65_535, System.currentTimeMillis() - receivedAt);
-            byte[] applied = MoveCodec.encodeMoveApplied(new MoveCodec.MoveApplied(
+            byte[] applied = format.encodeMoveApplied(new MoveCodec.MoveApplied(
                     ply, move.from(), move.to(), move.promotion(), verdict.flags(),
-                    clockWhiteMs, clockBlackMs, processMs));
+                    clockWhiteMs, clockBlackMs, processMs), fenAfter, verdict.san());
+            appliedPayloads.add(applied);
             broadcast(MsgType.MOVE_APPLIED, applied);
 
-            database.appendMove(gameId, ply, verdict.uci(), verdict.san(), fen,
-                    (int) clockWhiteMs, (int) clockBlackMs, receivedAt);
+            int snapshotPly = ply;
+            long snapshotWhite = clockWhiteMs;
+            long snapshotBlack = clockBlackMs;
+            dbWriter.submitCritical("move",
+                    gameId + "," + snapshotPly + "," + verdict.uci() + "," + verdict.san(),
+                    () -> database.appendMove(gameId, snapshotPly, verdict.uci(), verdict.san(),
+                            fenAfter, (int) snapshotWhite, (int) snapshotBlack, receivedAt));
 
             if (verdict.endsGame()) {
                 finish(resultFor(verdict.status(), mover), verdict.status());
             }
         });
+    }
+
+    /**
+     * Het gio.
+     *
+     * Theo luat FIDE, het gio ma ben con lai KHONG du quan de chieu het thi la
+     * hoa chu khong phai thua (X29). Rules service tra cho ta co
+     * `insufficient_material` de biet dieu do.
+     */
+    private void finishByTimeout(Player flagged) {
+        boolean opponentCanMate = true;
+        try {
+            opponentCanMate = !rules.insufficientMaterialFor(fen, flagged == white ? "b" : "w");
+        } catch (RuntimeException unavailable) {
+            // Khong hoi duoc thi xu theo huong thong thuong va ghi log de biet.
+            System.err.printf("Ban #%d: khong kiem tra duoc du quan khi het gio%n", gameId);
+        }
+        if (!opponentCanMate) {
+            finish("1/2-1/2", "timeout_insufficient_material");
+            return;
+        }
+        finish(flagged == white ? "0-1" : "1-0", "timeout");
     }
 
     private String resultFor(String status, Player mover) {
@@ -257,12 +396,25 @@ public final class GameActor {
         return "1/2-1/2";
     }
 
+    /** Nhat ky request bi tu choi: du lieu tho cho thi nghiem E6 va de soi gian lan. */
+    private void logSuspicious(Connection from, int code, MoveCodec.Move move) {
+        long userId = from.userId();
+        String detail = move.uci() + " ply=" + move.ply() + " (server ply=" + ply + ")";
+        dbWriter.submitBestEffort("rejected_move",
+                () -> database.logRejected(gameId, userId == 0 ? null : userId, code, detail));
+    }
+
     // ------------------------------------------------------------ thao tac khac
 
     public void onResign(Connection from) {
         submit(() -> {
             Player mover = playerOf(from);
-            if (mover == null || status == Status.FINISHED) {
+            if (mover == null) {
+                sendError(from, ErrorCode.NOT_A_PLAYER, "ban khong phai nguoi choi cua van nay");
+                return;
+            }
+            if (status == Status.FINISHED) {
+                sendError(from, ErrorCode.GAME_ALREADY_OVER, "van da ket thuc");   // X31
                 return;
             }
             finish(mover == white ? "0-1" : "1-0", "resign");
@@ -272,10 +424,15 @@ public final class GameActor {
     public void onDrawOffer(Connection from) {
         submit(() -> {
             Player mover = playerOf(from);
-            if (mover == null || status == Status.FINISHED) {
+            if (mover == null) {
+                sendError(from, ErrorCode.NOT_A_PLAYER, "ban khong phai nguoi choi cua van nay");
                 return;
             }
-            if (ply - drawOfferPly < 10) {
+            if (status == Status.FINISHED) {
+                sendError(from, ErrorCode.GAME_ALREADY_OVER, "van da ket thuc");
+                return;
+            }
+            if (ply - drawOfferPly < drawCooldownPlies) {
                 // Chong spam moi hoa (X30).
                 sendError(from, ErrorCode.RATE_LIMITED, "moi hoa qua thuong xuyen");
                 return;
@@ -289,8 +446,15 @@ public final class GameActor {
     public void onDrawReply(Connection from, boolean accept) {
         submit(() -> {
             Player replier = playerOf(from);
-            if (replier == null || status == Status.FINISHED || drawOfferBy == 0
-                    || drawOfferBy == replier.userId()) {
+            if (replier == null) {
+                sendError(from, ErrorCode.NOT_A_PLAYER, "ban khong phai nguoi choi cua van nay");
+                return;
+            }
+            if (status == Status.FINISHED) {
+                sendError(from, ErrorCode.GAME_ALREADY_OVER, "van da ket thuc");   // X31
+                return;
+            }
+            if (drawOfferBy == 0 || drawOfferBy == replier.userId()) {
                 return;
             }
             drawOfferBy = 0;
@@ -300,23 +464,116 @@ public final class GameActor {
         });
     }
 
-    /** Doi thu mat ket noi: van chuyen PAUSED, dong ho VAN chay (nhu lichess). */
+    // ------------------------------------------------------ mat ket noi / noi lai
+
+    /** Mot ben mat ket noi: van chuyen PAUSED, dong ho VAN chay (nhu lichess). */
     public void onDisconnect(Connection gone, long graceMs) {
         submit(() -> {
             Player player = playerOf(gone);
-            if (player == null || status == Status.FINISHED) {
-                return;
+            if (player != null && player.connection() == gone && status != Status.FINISHED) {
+                status = Status.PAUSED;
+                pausedSince = System.currentTimeMillis();
+                pausedUserId = player.userId();
+                pauseReason = "doi " + player.username() + " noi lai";
+                dbWriter.submitBestEffort("game_status", () -> database.setGameStatus(gameId, "PAUSED"));
+                send(opponentOf(player).connection(), MsgType.PEER_STATUS, Json.of(Map.of(
+                        "state", "disconnected", "graceMs", graceMs)));
+                System.out.printf("Ban #%d: %s mat ket noi, an han %d ms%n",
+                        gameId, player.username(), graceMs);
             }
-            status = Status.PAUSED;
-            pausedSince = System.currentTimeMillis();
-            pausedUserId = player.userId();
-            database.setGameStatus(gameId, "PAUSED");
-            send(opponentOf(player).connection(), MsgType.PEER_STATUS, Json.of(Map.of(
-                    "state", "disconnected", "graceMs", graceMs)));
-            System.out.printf("Ban #%d: %s mat ket noi, an han %d ms%n",
-                    gameId, player.username(), graceMs);
+            // Khan gia dong tab thi chi can go khoi danh sach (X59).
+            if (spectators.remove(gone)) {
+                broadcastSpectatorCount();
+            }
         });
     }
+
+    /**
+     * Gan mot ket noi MOI vao nguoi choi cu va phat lai phan con thieu.
+     *
+     * Day la noi dung cua dong gop N5, do o thi nghiem E5. Ba diem quan trong:
+     *
+     *  - Snapshot duoc gui TRUOC, nen du client khai `lastPly` sai kieu gi
+     *    (X14: `lastPly` = 9999) thi no van co trang thai dung.
+     *  - Phat lai bang dung nhung byte MOVE_APPLIED da gui lan dau, nen chuoi
+     *    su kien client thay khong khac gi khi khong rot mang.
+     *  - Van chi tro lai IN_PROGRESS khi ca hai ben deu co ket noi song.
+     *
+     * @return false neu ban nay da ket thuc va khong con gi de noi lai
+     */
+    public boolean reattach(Connection connection, int lastPly) {
+        if (status == Status.FINISHED) {
+            return false;
+        }
+        // Gan gameId NGAY, khong doi task duoi chay.
+        //
+        // Message ke tiep cua client (thuong la RESIGN hoac MOVE) duoc dinh
+        // tuyen bang `connection.gameId()` tren thread mang. Neu de viec gan
+        // nam trong task cua actor thi message do co the toi truoc va bi tra
+        // 3003 "khong o trong van nao" — trong khi nguoi choi vua noi lai dung
+        // van cua ho xong.
+        connection.setGameId(gameId);
+        submit(() -> {
+            Player player = playerOf(connection.userId());
+            if (player == null) {
+                return;
+            }
+            player.connection = connection;
+
+            send(connection, MsgType.MATCH_FOUND, Json.of(Map.of(
+                    "gameId", gameId,
+                    "color", player == white ? "w" : "b",
+                    "opponent", opponentOf(player).username(),
+                    "oppElo", opponentOf(player).elo(),
+                    "timeControl", timeControl)));
+            send(connection, MsgType.GAME_SNAPSHOT, snapshot());
+
+            int from = Math.max(0, Math.min(lastPly, ply));
+            for (int index = from; index < appliedPayloads.size(); index++) {
+                send(connection, MsgType.MOVE_APPLIED, appliedPayloads.get(index));
+            }
+
+            if (status == Status.PAUSED && pausedUserId == player.userId()) {
+                status = Status.IN_PROGRESS;
+                pauseReason = "";
+                dbWriter.submitBestEffort("game_status",
+                        () -> database.setGameStatus(gameId, "IN_PROGRESS"));
+                send(opponentOf(player).connection(), MsgType.PEER_STATUS,
+                        Json.of(Map.of("state", "reconnected", "graceMs", 0)));
+            }
+            System.out.printf("Ban #%d: %s noi lai, phat lai %d nuoc%n",
+                    gameId, player.username(), appliedPayloads.size() - from);
+        });
+        return true;
+    }
+
+    // ---------------------------------------------------------------- khan gia
+
+    public void addSpectator(Connection connection) {
+        submit(() -> {
+            spectators.add(connection);
+            connection.spectating().add(gameId);
+            send(connection, MsgType.GAME_SNAPSHOT, snapshot());
+            broadcastSpectatorCount();
+        });
+    }
+
+    public void removeSpectator(Connection connection) {
+        submit(() -> {
+            connection.spectating().remove(gameId);
+            if (spectators.remove(connection)) {
+                broadcastSpectatorCount();
+            }
+        });
+    }
+
+    private void broadcastSpectatorCount() {
+        byte[] payload = ByteBuffer.allocate(2)
+                .putShort((short) Math.min(65_535, spectators.size())).array();
+        broadcast(MsgType.SPECTATOR_COUNT, payload);
+    }
+
+    // ------------------------------------------------------------ dong ho / tick
 
     /** Dong ho va thoi gian an han deu do server quet, khong phu thuoc client. */
     public void onTick(long now, long graceMs) {
@@ -324,8 +581,10 @@ public final class GameActor {
             if (status == Status.FINISHED) {
                 return;
             }
-            if (status == Status.PAUSED && now - pausedSince > graceMs) {
-                finish(pausedUserId == white.userId() ? "0-1" : "1-0", "disconnect");
+            if (status == Status.PAUSED) {
+                if (now - pausedSince > graceMs && pausedUserId != 0) {
+                    finish(pausedUserId == white.userId() ? "0-1" : "1-0", "disconnect");
+                }
                 return;
             }
             boolean whiteToMove = ply % 2 == 0;
@@ -336,7 +595,7 @@ public final class GameActor {
                 } else {
                     clockBlackMs = 0;
                 }
-                finish(whiteToMove ? "0-1" : "1-0", "timeout");
+                finishByTimeout(whiteToMove ? white : black);
             }
         });
     }
@@ -344,9 +603,37 @@ public final class GameActor {
     private void pause(int code, String message) {
         status = Status.PAUSED;
         pausedSince = System.currentTimeMillis();
-        database.setGameStatus(gameId, "PAUSED");
-        byte[] payload = Json.of(Map.of("code", code, "message", message));
-        broadcast(MsgType.ERROR, payload);
+        pausedUserId = 0;                    // khong phai loi cua ai ca
+        pauseReason = message;
+        dbWriter.submitBestEffort("game_status", () -> database.setGameStatus(gameId, "PAUSED"));
+        broadcast(MsgType.ERROR, Json.of(Map.of("code", code, "message", message)));
+    }
+
+    /**
+     * Ban nay dang dung vi RULES SERVICE chet, chu khong phai vi nguoi choi rot mang?
+     *
+     * Phan biet hai loai PAUSED la can thiet: loai do rules service thi tu chay
+     * tiep duoc khi dich vu song lai, con loai do nguoi choi rot mang thi phai
+     * cho chinh nguoi do noi lai.
+     */
+    public boolean pausedByRules() {
+        return status == Status.PAUSED && pausedUserId == 0;
+    }
+
+    /** Rules service song lai: chay tiep tu dung cho dang dung (kich ban E7). */
+    public void resumeAfterRulesRecovered() {
+        submit(() -> {
+            if (status != Status.PAUSED || pausedUserId != 0) {
+                return;
+            }
+            status = Status.IN_PROGRESS;
+            pauseReason = "";
+            turnStartedAt = System.currentTimeMillis();
+            dbWriter.submitBestEffort("game_status",
+                    () -> database.setGameStatus(gameId, "IN_PROGRESS"));
+            broadcastSnapshot();
+            System.out.printf("Ban #%d: rules service da song lai, van chay tiep%n", gameId);
+        });
     }
 
     // ---------------------------------------------------------------- ket thuc
@@ -361,12 +648,23 @@ public final class GameActor {
         String pgn = PgnWriter.write(white.username(), black.username(), result, reason,
                 timeControl, sanMoves);
 
-        database.finishGame(gameId, result, reason, pgn);
-        database.updateElo(white.userId(), white.elo() + deltas[0],
-                black.userId(), black.elo() + deltas[1]);
+        dbWriter.submitCritical("finish_game", gameId + "," + result + "," + reason,
+                () -> database.finishGame(gameId, result, reason, pgn));
+        dbWriter.submitCritical("elo",
+                white.userId() + ":" + (white.elo() + deltas[0]) + ","
+                        + black.userId() + ":" + (black.elo() + deltas[1]),
+                () -> database.updateElo(white.userId(), white.elo() + deltas[0],
+                        black.userId(), black.elo() + deltas[1]));
 
         sendGameOver(white, result, reason, deltas[0], pgn);
         sendGameOver(black, result, reason, deltas[1], pgn);
+        // Khan gia cung phai biet van da xong, neu khong ho ngoi nhin man hinh dung (X57).
+        byte[] over = Json.of(Map.of("result", result, "reason", reason, "eloDelta", 0, "pgn", pgn));
+        for (Connection spectator : spectators) {
+            spectator.offer(FrameCodec.encode(MsgType.GAME_OVER, 0, over));
+            spectator.spectating().remove(gameId);
+        }
+        spectators.clear();
 
         white.connection().setGameId(0);
         black.connection().setGameId(0);
@@ -391,10 +689,13 @@ public final class GameActor {
         byte[] payload = snapshot();
         send(white.connection(), MsgType.GAME_SNAPSHOT, payload);
         send(black.connection(), MsgType.GAME_SNAPSHOT, payload);
+        for (Connection spectator : spectators) {
+            spectator.offer(FrameCodec.encode(MsgType.GAME_SNAPSHOT, 0, payload));
+        }
     }
 
     private byte[] snapshot() {
-        Map<String, Object> fields = new HashMap<>();
+        Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("gameId", gameId);
         fields.put("fen", fen);
         fields.put("ply", ply);
@@ -403,6 +704,10 @@ public final class GameActor {
         fields.put("clockB", clockBlackMs);
         fields.put("turn", ply % 2 == 0 ? "w" : "b");
         fields.put("status", status.name());
+        fields.put("white", white.username());
+        fields.put("black", black.username());
+        fields.put("timeControl", timeControl);
+        fields.put("spectators", spectators.size());
         return Json.of(fields);
     }
 
@@ -413,19 +718,51 @@ public final class GameActor {
         return black.connection() == connection ? black : null;
     }
 
+    private Player playerOf(long userId) {
+        if (white.userId() == userId) {
+            return white;
+        }
+        return black.userId() == userId ? black : null;
+    }
+
     private Player opponentOf(Player player) {
         return player == white ? black : white;
     }
 
+    /**
+     * Gui cho ca hai nguoi choi, roi moi den khan gia.
+     *
+     * Thu tu nay la co chu dich (X58): nguoi choi duoc phuc vu truoc, va khan
+     * gia dung `offer` nen mot khan gia doc cham chi tu bo lo message chu khong
+     * lam cham ban co.
+     */
     private void broadcast(int type, byte[] payload) {
         send(white.connection(), type, payload);
         send(black.connection(), type, payload);
+        if (spectators.isEmpty()) {
+            return;
+        }
+        List<Connection> tooSlow = null;
+        for (Connection spectator : spectators) {
+            if (!spectator.offer(FrameCodec.encode(type, 0, payload))) {
+                if (tooSlow == null) {
+                    tooSlow = new ArrayList<>();
+                }
+                tooSlow.add(spectator);
+            }
+        }
+        if (tooSlow != null) {
+            for (Connection slow : tooSlow) {
+                spectators.remove(slow);
+                slow.spectating().remove(gameId);
+            }
+            broadcastSpectatorCount();
+        }
     }
 
     private void send(Connection connection, int type, byte[] payload) {
         try {
-            ByteBuffer frame = FrameCodec.encode(type, 0, payload);
-            connection.send(frame);
+            connection.send(FrameCodec.encode(type, 0, payload));
         } catch (RuntimeException overflow) {
             // Client doc qua cham hoac da dong: khong duoc lam hong ban co.
             connection.markClosing();
@@ -438,5 +775,9 @@ public final class GameActor {
 
     public List<String> sanMoves() {
         return List.copyOf(sanMoves);
+    }
+
+    public long droppedFromQueue() {
+        return droppedFromQueue;
     }
 }

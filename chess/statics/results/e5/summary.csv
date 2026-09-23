@@ -1,0 +1,5 @@
+outage_s,games,resumed,recovery_p50_ms,moves_lost,games_finished
+5,10,10/20,23.5,0,10/10
+20,10,10/20,20.59,0,10/10
+50,10,10/20,16.69,0,10/10
+12 (grace 5s),3,-,-,-,3/3

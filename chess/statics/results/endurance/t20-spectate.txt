@@ -1,0 +1,18 @@
+Thi nghiem E8 — 20 khan gia TCP + 20 khan gia WebSocket
+  game server 127.0.0.1:5555, gateway ws://127.0.0.1:8080
+  van #4682 dang chay
+  40 khan gia da vao, dang do...
+
+--- Ket qua ---
+TCP thuan    : 1719 message, 34842 byte tren socket (34842 byte la CGP)
+               overhead dong khung: 0 byte/message  |  trung binh ca goi: 20.27 byte/message
+               do tre toi khan gia p50/p95: 1.02 / 2.14 ms (600 mau)
+WebSocket    : 981 message, 28971 byte tren socket (26969 byte la CGP)
+               overhead dong khung: 2.04 byte/message  |  trung binh ca goi: 29.53 byte/message
+               do tre toi khan gia p50/p95: 1.68 / 3.19 ms (600 mau)
+
+WebSocket ton them 2.04 byte/message so voi TCP thuan
+  (RFC 6455: 2 byte header cho payload < 126 byte, 4 byte tu 126 den 64 KiB;
+   server khong mask nen khong ton them 4 byte khoa nhu chieu nguoc lai.
+   TCP thuan co overhead 0 o tang nay vi CGP tu dong khung - phan header
+   cua TCP/IP nam duoi tang nay nen khong quan sat duoc tu day.)

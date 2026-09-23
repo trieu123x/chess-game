@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="900" height="520" fill="#ffffff"/>
+<text x="450" y="34" text-anchor="middle" font-size="19" font-weight="600" fill="#111827">E7 - do tre nuoc di theo cach phan xu luat</text>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="454" text-anchor="end" font-size="12.5" fill="#6b7280">0</text>
+<line x1="78" y1="372.8" x2="872" y2="372.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="376.8" text-anchor="end" font-size="12.5" fill="#6b7280">8</text>
+<line x1="78" y1="295.6" x2="872" y2="295.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="299.6" text-anchor="end" font-size="12.5" fill="#6b7280">16</text>
+<line x1="78" y1="218.4" x2="872" y2="218.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="222.4" text-anchor="end" font-size="12.5" fill="#6b7280">24</text>
+<line x1="78" y1="141.2" x2="872" y2="141.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="145.2" text-anchor="end" font-size="12.5" fill="#6b7280">32</text>
+<line x1="78" y1="64" x2="872" y2="64" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="68" text-anchor="end" font-size="12.5" fill="#6b7280">40</text>
+<line x1="78" y1="64" x2="78" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<text x="177.25" y="472" text-anchor="middle" font-size="12.5" fill="#374151">embedded</text>
+<text x="375.75" y="472" text-anchor="middle" font-size="12.5" fill="#374151">remote-1-khong-cache</text>
+<text x="574.25" y="472" text-anchor="middle" font-size="12.5" fill="#374151">remote-1-co-cache</text>
+<text x="772.75" y="472" text-anchor="middle" font-size="12.5" fill="#374151">remote-2-co-cache</text>
+<text x="475" y="504" text-anchor="middle" font-size="13.5" fill="#4b5563">scenario</text>
+<text transform="translate(20 257) rotate(-90)" text-anchor="middle" font-size="13.5" fill="#4b5563">ms</text>
+<rect x="119.3" y="327.2" width="58.0" height="122.8" fill="#2563eb"/>
+<text x="148.3" y="321.2" text-anchor="middle" font-size="11.5" fill="#374151">12.73</text>
+<rect x="317.8" y="315.9" width="58.0" height="134.1" fill="#2563eb"/>
+<text x="346.8" y="309.9" text-anchor="middle" font-size="11.5" fill="#374151">13.9</text>
+<rect x="516.3" y="320.8" width="58.0" height="129.2" fill="#2563eb"/>
+<text x="545.3" y="314.8" text-anchor="middle" font-size="11.5" fill="#374151">13.39</text>
+<rect x="714.8" y="321.0" width="58.0" height="129.0" fill="#2563eb"/>
+<text x="743.8" y="315.0" text-anchor="middle" font-size="11.5" fill="#374151">13.37</text>
+<rect x="177.3" y="134.9" width="58.0" height="315.1" fill="#dc2626"/>
+<text x="206.3" y="128.9" text-anchor="middle" font-size="11.5" fill="#374151">32.65</text>
+<rect x="375.8" y="131.2" width="58.0" height="318.8" fill="#dc2626"/>
+<text x="404.8" y="125.2" text-anchor="middle" font-size="11.5" fill="#374151">33.04</text>
+<rect x="574.3" y="145.1" width="58.0" height="304.9" fill="#dc2626"/>
+<text x="603.3" y="139.1" text-anchor="middle" font-size="11.5" fill="#374151">31.6</text>
+<rect x="772.8" y="122.9" width="58.0" height="327.1" fill="#dc2626"/>
+<text x="801.8" y="116.9" text-anchor="middle" font-size="11.5" fill="#374151">33.9</text>
+<rect x="78" y="35" width="13" height="13" rx="2" fill="#2563eb"/>
+<text x="97" y="46" font-size="12.5" fill="#374151">p50_ms</text>
+<rect x="268" y="35" width="13" height="13" rx="2" fill="#dc2626"/>
+<text x="287" y="46" font-size="12.5" fill="#374151">p95_ms</text>
+</svg>

@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DCGS – Khán đài</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f26; --line: #2b3039; --text: #e6e8ec;
+    --muted: #949aa6; --light: #ebe3d3; --dark: #7d8a9c; --accent: #6ea8fe;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  }
+  h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  .status { color: var(--muted); font-size: 13px; }
+  .status.on { color: #6bd68a; }
+  .status.err { color: #ff8b8b; }
+  main { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 20px; padding: 20px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+              color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  tr.game { cursor: pointer; }
+  tr.game:hover td { background: #242833; }
+  tr.game.active td { background: #2a3550; }
+  .board { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1;
+           width: 100%; max-width: 520px; border-radius: 6px; overflow: hidden; }
+  .sq { display: grid; place-items: center; font-size: clamp(20px, 5.4vw, 40px); line-height: 1; }
+  .sq.l { background: var(--light); } .sq.d { background: var(--dark); }
+  .sq.w { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
+  .sq.b { color: #14161a; }
+  .sq.last { box-shadow: inset 0 0 0 3px rgba(110,168,254,.85); }
+  .clocks { display: flex; justify-content: space-between; margin: 10px 0 4px; font-variant-numeric: tabular-nums; }
+  .clock { background: #23262e; border-radius: 6px; padding: 6px 12px; font-size: 18px; }
+  .clock.turn { background: var(--accent); color: #0f1115; font-weight: 600; }
+  .moves { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px;
+           max-height: 150px; overflow: auto; color: var(--muted); margin-top: 10px; }
+  input, button { font: inherit; border-radius: 6px; border: 1px solid var(--line); }
+  input { background: #23262e; color: var(--text); padding: 5px 8px; width: 110px; }
+  button { background: var(--accent); color: #0f1115; border: 0; padding: 6px 13px;
+           font-weight: 600; cursor: pointer; }
+  button.ghost { background: #2b3039; color: var(--text); }
+  button:disabled { opacity: .45; cursor: default; }
+  .log { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; color: var(--muted);
+         max-height: 160px; overflow: auto; white-space: pre-wrap; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DCGS · Khán đài</h1>
+  <span id="status" class="status">chưa kết nối</span>
+  <span class="row" style="margin-left:auto">
+    <input id="user" value="carol" autocomplete="username">
+    <input id="pass" type="password" value="chess123" autocomplete="current-password">
+    <button id="connect">Kết nối</button>
+    <button id="refresh" class="ghost" disabled>Làm mới</button>
+  </span>
+</header>
+
+<main>
+  <div>
+    <div class="panel">
+      <h2>Ván đang diễn ra</h2>
+      <table><tbody id="games"><tr><td class="empty">chưa có dữ liệu</td></tr></tbody></table>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>Bảng xếp hạng</h2>
+      <table>
+        <thead><tr><th>#</th><th>Người chơi</th><th>Elo</th><th>Ván</th><th>Thắng</th></tr></thead>
+        <tbody id="board"><tr><td colspan="5" class="empty">chưa có dữ liệu</td></tr></tbody>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>Nhật ký giao thức</h2>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 id="title">Chọn một ván để xem</h2>
+    <div class="clocks">
+      <span id="clockB" class="clock">–:–</span>
+      <span id="spectators" class="status"></span>
+      <span id="clockW" class="clock">–:–</span>
+    </div>
+    <div id="chessboard" class="board"></div>
+    <div id="moves" class="moves"></div>
+  </div>
+</main>
+
+<script type="module">
+/**
+ * Giao dien khan gia.
+ *
+ * CODE CUA NHOM. Trang nay noi dung CGP — cung bo ma message, cung cach dong
+ * khung nhu server Java va bot Node — chi khac la di qua Web Gateway vi trinh
+ * duyet khong mo duoc socket TCP thuan. Day la ban hien thuc thu TU cua cung
+ * mot protocol (Java / Node / TypeScript / trang nay), nen no cung la bang
+ * chung cho dong gop N6.
+ *
+ * Trang nay CHI DOC: no khong gui MOVE, khong tham gia van nao.
+ */
+
+// ------------------------------------------------------------ codec CGP
+
+const T = {
+  LOGIN: 0x01, SPECTATE_JOIN: 0x0a, SPECTATE_LEAVE: 0x0b, HEARTBEAT: 0x0e, LOBBY_REQ: 0x10,
+  LOGIN_OK: 0x80, GAME_SNAPSHOT: 0x82, MOVE_APPLIED: 0x83, GAME_OVER: 0x86,
+  SPECTATOR_COUNT: 0x89, HISTORY_RESULT: 0x8a, LOBBY_RESULT: 0x8b,
+  HEARTBEAT_ACK: 0x8e, ERROR: 0x8f,
+}
+const NAMES = Object.fromEntries(Object.entries(T).map(([name, code]) => [code, name]))
+const typeName = type => NAMES[type] ?? `0x${type.toString(16)}`
+
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
+
+/** Khung: LEN(u32) | TYPE(u8) | SEQ(u32) | PAYLOAD, big-endian. */
+function encodeFrame(type, seq, payload = new Uint8Array(0)) {
+  const out = new Uint8Array(9 + payload.length)
+  const view = new DataView(out.buffer)
+  view.setUint32(0, 5 + payload.length)
+  view.setUint8(4, type)
+  view.setUint32(5, seq)
+  out.set(payload, 9)
+  return out
+}
+
+function decodeFrame(buffer) {
+  const bytes = new Uint8Array(buffer)
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  return { type: view.getUint8(4), seq: view.getUint32(5), payload: bytes.subarray(9) }
+}
+
+const json = value => encoder.encode(JSON.stringify(value))
+const parseJson = payload => JSON.parse(decoder.decode(payload))
+
+const indexToSquare = index =>
+  String.fromCharCode(97 + (index % 8)) + String.fromCharCode(49 + Math.floor(index / 8))
+
+/** MOVE_APPLIED: 16 byte, khong kem FEN — client tu ap nuoc di (delta encoding). */
+function decodeMoveApplied(payload) {
+  const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength)
+  return {
+    ply: view.getUint16(0),
+    from: indexToSquare(view.getUint8(2)),
+    to: indexToSquare(view.getUint8(3)),
+    promo: ['', 'n', 'b', 'r', 'q'][view.getUint8(4)] ?? '',
+    flags: view.getUint8(5),
+    clockW: view.getUint32(6),
+    clockB: view.getUint32(10),
+  }
+}
+
+// ---------------------------------------------------------------- ban co
+
+const PIECES = {
+  K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙',
+  k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
+}
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+/** FEN -> mang 64 o, index = rank*8 + file (a1 = 0) — dung quy uoc cua PROTOCOL.md §A3. */
+function boardFromFen(fen) {
+  const squares = new Array(64).fill('')
+  let rank = 7
+  let file = 0
+  for (const symbol of fen.split(' ')[0]) {
+    if (symbol === '/') { rank--; file = 0 }
+    else if (symbol >= '1' && symbol <= '8') file += Number(symbol)
+    else { squares[rank * 8 + file] = symbol; file++ }
+  }
+  return squares
+}
+
+const squareToIndex = square =>
+  (square.charCodeAt(1) - 49) * 8 + (square.charCodeAt(0) - 97)
+
+const boardElement = document.getElementById('chessboard')
+const cells = []
+for (let rank = 7; rank >= 0; rank--) {
+  for (let file = 0; file < 8; file++) {
+    const cell = document.createElement('div')
+    cell.className = 'sq ' + ((rank + file) % 2 ? 'l' : 'd')
+    boardElement.append(cell)
+    cells[rank * 8 + file] = cell
+  }
+}
+
+function render(squares, highlight = []) {
+  for (let index = 0; index < 64; index++) {
+    const piece = squares[index]
+    const cell = cells[index]
+    cell.textContent = piece ? PIECES[piece] : ''
+    cell.classList.toggle('w', piece !== '' && piece === piece.toUpperCase())
+    cell.classList.toggle('b', piece !== '' && piece === piece.toLowerCase())
+    cell.classList.toggle('last', highlight.includes(index))
+  }
+}
+
+const clock = ms => {
+  const total = Math.max(0, Math.round(ms / 1000))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+// ------------------------------------------------------------ trang thai
+
+const ui = {
+  status: document.getElementById('status'),
+  games: document.getElementById('games'),
+  board: document.getElementById('board'),
+  log: document.getElementById('log'),
+  title: document.getElementById('title'),
+  moves: document.getElementById('moves'),
+  clockW: document.getElementById('clockW'),
+  clockB: document.getElementById('clockB'),
+  spectators: document.getElementById('spectators'),
+}
+
+let socket = null
+let seq = 1
+let watching = 0
+let squares = boardFromFen(START_FEN)
+let sanMoves = []
+
+const log = line => {
+  ui.log.textContent = `${new Date().toLocaleTimeString()}  ${line}\n` + ui.log.textContent
+  if (ui.log.textContent.length > 6000) ui.log.textContent = ui.log.textContent.slice(0, 6000)
+}
+
+const setStatus = (text, kind = '') => {
+  ui.status.textContent = text
+  ui.status.className = 'status ' + kind
+}
+
+const send = (type, payload) => {
+  if (socket?.readyState !== WebSocket.OPEN) return false
+  socket.send(encodeFrame(type, seq++, payload))
+  return true
+}
+
+function connect() {
+  const scheme = location.protocol === 'https:' ? 'wss' : 'ws'
+  socket = new WebSocket(`${scheme}://${location.host}/`)
+  socket.binaryType = 'arraybuffer'
+  setStatus('đang kết nối…')
+
+  socket.onopen = () => {
+    setStatus('đã kết nối, đang đăng nhập…')
+    send(T.LOGIN, json({
+      username: document.getElementById('user').value,
+      password: document.getElementById('pass').value,
+    }))
+  }
+  socket.onclose = () => {
+    setStatus('mất kết nối với gateway', 'err')
+    document.getElementById('refresh').disabled = true
+    // Gateway chet thi chi khan dai hong; van dau va nguoi choi khong sao (X60).
+    setTimeout(connect, 3000)
+  }
+  socket.onerror = () => setStatus('lỗi WebSocket', 'err')
+  socket.onmessage = event => handle(decodeFrame(event.data))
+}
+
+function handle(frame) {
+  switch (frame.type) {
+    case T.LOGIN_OK: {
+      const { username } = parseJson(frame.payload)
+      setStatus(`đang xem với tài khoản ${username}`, 'on')
+      document.getElementById('refresh').disabled = false
+      send(T.LOBBY_REQ, new Uint8Array(0))
+      break
+    }
+
+    case T.LOBBY_RESULT: {
+      const lobby = parseJson(frame.payload)
+      renderGames(lobby.games ?? [])
+      renderLeaderboard(lobby.leaderboard ?? [])
+      break
+    }
+
+    case T.GAME_SNAPSHOT: {
+      const snapshot = parseJson(frame.payload)
+      watching = snapshot.gameId
+      squares = boardFromFen(snapshot.fen)
+      sanMoves = snapshot.moves ?? []
+      ui.title.textContent =
+        `#${snapshot.gameId} · ${snapshot.white} – ${snapshot.black} · ${snapshot.timeControl}`
+      ui.clockW.textContent = clock(snapshot.clockW)
+      ui.clockB.textContent = clock(snapshot.clockB)
+      ui.clockW.classList.toggle('turn', snapshot.turn === 'w')
+      ui.clockB.classList.toggle('turn', snapshot.turn === 'b')
+      ui.spectators.textContent = `${snapshot.spectators ?? 0} người xem · ${snapshot.status}`
+      render(squares)
+      renderMoves()
+      log(`GAME_SNAPSHOT #${snapshot.gameId} ply=${snapshot.ply} (${snapshot.status})`)
+      break
+    }
+
+    case T.MOVE_APPLIED: {
+      // 16 byte, khong co FEN: ap nuoc di len ban co cuc bo. Day chinh la
+      // delta encoding duoc do o thi nghiem E3.
+      const move = decodeMoveApplied(frame.payload)
+      applyMove(move)
+      ui.clockW.textContent = clock(move.clockW)
+      ui.clockB.textContent = clock(move.clockB)
+      const whiteToMove = move.ply % 2 === 0
+      ui.clockW.classList.toggle('turn', whiteToMove)
+      ui.clockB.classList.toggle('turn', !whiteToMove)
+      log(`MOVE_APPLIED ply=${move.ply} ${move.from}${move.to} (${frame.payload.length} B)`)
+      break
+    }
+
+    case T.SPECTATOR_COUNT: {
+      const view = new DataView(frame.payload.buffer, frame.payload.byteOffset)
+      ui.spectators.textContent = `${view.getUint16(0)} người xem`
+      break
+    }
+
+    case T.GAME_OVER: {
+      const over = parseJson(frame.payload)
+      ui.title.textContent += ` — kết thúc ${over.result} (${over.reason})`
+      log(`GAME_OVER ${over.result} ${over.reason}`)
+      send(T.LOBBY_REQ, new Uint8Array(0))
+      break
+    }
+
+    case T.HISTORY_RESULT: {
+      sanMoves = parseJson(frame.payload).moves ?? []
+      renderMoves()
+      break
+    }
+
+    case T.HEARTBEAT:
+      // Server tu do RTT bang chu trinh nay, nen phai tra loi (X33).
+      send(T.HEARTBEAT_ACK, new Uint8Array(0))
+      break
+
+    case T.ERROR: {
+      const failure = parseJson(frame.payload)
+      log(`ERROR ${failure.code} ${failure.message}`)
+      setStatus(`lỗi ${failure.code}: ${failure.message}`, 'err')
+      break
+    }
+
+    default:
+      log(`<- ${typeName(frame.type)} (${frame.payload.length} B)`)
+  }
+}
+
+/** Ap mot nuoc di len ban co cuc bo, gom ca nhap thanh, bat tot qua duong, phong cap. */
+function applyMove(move) {
+  const from = squareToIndex(move.from)
+  const to = squareToIndex(move.to)
+  const piece = squares[from]
+  const white = piece === piece.toUpperCase()
+
+  if (move.flags & 4) {            // bat tot qua duong: quan bi an o hang cua quan di
+    squares[Math.floor(from / 8) * 8 + (to % 8)] = ''
+  }
+  squares[from] = ''
+  squares[to] = move.promo
+    ? (white ? move.promo.toUpperCase() : move.promo)
+    : piece
+  if (move.flags & 2) {            // nhap thanh: xe di theo
+    const rank = Math.floor(to / 8) * 8
+    if (to % 8 === 6) { squares[rank + 5] = squares[rank + 7]; squares[rank + 7] = '' }
+    else { squares[rank + 3] = squares[rank]; squares[rank] = '' }
+  }
+  render(squares, [from, to])
+}
+
+function renderGames(games) {
+  if (!games.length) {
+    ui.games.innerHTML = '<tr><td class="empty">chưa có ván nào đang chạy</td></tr>'
+    return
+  }
+  ui.games.innerHTML = ''
+  for (const game of games) {
+    const row = document.createElement('tr')
+    row.className = 'game' + (game.gameId === watching ? ' active' : '')
+    row.innerHTML = `<td>#${game.gameId}</td>`
+      + `<td>${game.white} – ${game.black}</td>`
+      + `<td>${game.ply} nước</td><td>${game.spectators}👁</td>`
+    row.onclick = () => {
+      if (watching && watching !== game.gameId) {
+        send(T.SPECTATE_LEAVE, json({ gameId: watching }))
+      }
+      send(T.SPECTATE_JOIN, json({ gameId: game.gameId }))
+      log(`SPECTATE_JOIN #${game.gameId}`)
+    }
+    ui.games.append(row)
+  }
+}
+
+function renderLeaderboard(rows) {
+  if (!rows.length) {
+    ui.board.innerHTML = '<tr><td colspan="5" class="empty">chưa có ván nào kết thúc</td></tr>'
+    return
+  }
+  ui.board.innerHTML = rows.map((row, index) =>
+    `<tr><td>${index + 1}</td><td>${row.username}</td><td>${row.elo}</td>`
+    + `<td>${row.played}</td><td>${row.won}</td></tr>`).join('')
+}
+
+function renderMoves() {
+  const pairs = []
+  for (let index = 0; index < sanMoves.length; index += 2) {
+    pairs.push(`${index / 2 + 1}. ${sanMoves[index]} ${sanMoves[index + 1] ?? ''}`)
+  }
+  ui.moves.textContent = pairs.join('  ')
+}
+
+document.getElementById('connect').onclick = () => {
+  socket?.close()
+  connect()
+}
+document.getElementById('refresh').onclick = () => send(T.LOBBY_REQ, new Uint8Array(0))
+
+// Server dong ket noi im lang sau 15 s (X01), nen phai giu nhip.
+setInterval(() => send(T.HEARTBEAT, new Uint8Array(0)), 5000)
+setInterval(() => { if (socket?.readyState === WebSocket.OPEN) send(T.LOBBY_REQ, new Uint8Array(0)) }, 5000)
+
+render(squares)
+connect()
+</script>
+</body>
+</html>

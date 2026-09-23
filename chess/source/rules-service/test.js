@@ -154,3 +154,28 @@ test('FEN hong tra ve RULES_ERROR, service van song', async () => {
   const stillAlive = await ask(cgp.T.RULES_PING, {})
   assert.strictEqual(stillAlive.type, cgp.T.RULES_OK)
 })
+
+test('RULES_MATERIAL: het gio thi hoi duoc ben con lai co du quan chieu het khong (X29)', async () => {
+  // Chi con vua: khong the chieu het, nen het gio la HOA chu khong phai thang.
+  const bareKing = await ask(cgp.T.RULES_MATERIAL, { fen: '7k/8/8/8/8/8/8/K7 w - - 0 1', side: 'w' })
+  assert.strictEqual(bareKing.type, cgp.T.RULES_OK)
+  assert.strictEqual(cgp.parseJson(bareKing.payload).sufficient, false)
+
+  // Vua + mot ma: van khong ep duoc chieu het.
+  const oneKnight = await ask(cgp.T.RULES_MATERIAL, { fen: '7k/8/8/8/8/8/8/KN6 w - - 0 1', side: 'w' })
+  assert.strictEqual(cgp.parseJson(oneKnight.payload).sufficient, false)
+
+  // Hai ma: theo FIDE la co the chieu het (du khong ep duoc), nen tinh la du quan.
+  const twoKnights = await ask(cgp.T.RULES_MATERIAL, { fen: '7k/8/8/8/8/8/8/KNN5 w - - 0 1', side: 'w' })
+  assert.strictEqual(cgp.parseJson(twoKnights.payload).sufficient, true)
+
+  // Co xe thi chac chan du quan.
+  const rook = await ask(cgp.T.RULES_MATERIAL, { fen: '7k/8/8/8/8/8/8/KR6 w - - 0 1', side: 'w' })
+  assert.strictEqual(cgp.parseJson(rook.payload).sufficient, true)
+
+  // Hoi rieng tung ben: Den co hau thi du quan, Trang chi con vua thi khong.
+  const black = await ask(cgp.T.RULES_MATERIAL, { fen: '6qk/8/8/8/8/8/8/K7 w - - 0 1', side: 'b' })
+  assert.strictEqual(cgp.parseJson(black.payload).sufficient, true)
+  const white = await ask(cgp.T.RULES_MATERIAL, { fen: '6qk/8/8/8/8/8/8/K7 w - - 0 1', side: 'w' })
+  assert.strictEqual(cgp.parseJson(white.payload).sufficient, false)
+})
