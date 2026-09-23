@@ -1,0 +1,7 @@
+label,format,games,username,game_id,color,login_ms,plies,result,reason,move_p50_ms,rejects,resumes,recovery_ms,bytes_in,bytes_out,error
+e5-qua-grace,binary,3,bot_1,4370,w,189.84,9,0-1,disconnect,4.67,0,1,34.20000000000073,0,0,1099,262,
+e5-qua-grace,binary,3,bot_2,4371,b,203.09,9,0-1,disconnect,9.45,0,0,,0,5,1400,254,
+e5-qua-grace,binary,3,bot_3,4372,b,203.74,9,0-1,disconnect,4.11,0,0,,0,5,1399,254,
+e5-qua-grace,binary,3,bot_4,4372,w,202.91,9,0-1,disconnect,3.35,0,1,36.5,0,0,1102,262,
+e5-qua-grace,binary,3,bot_5,4371,w,202.17,9,0-1,disconnect,6.42,0,1,30.55999999999949,0,0,1102,262,
+e5-qua-grace,binary,3,bot_6,4370,b,201.24,9,0-1,disconnect,8.08,0,0,,0,5,1398,254,

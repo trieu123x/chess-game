@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="900" height="520" fill="#ffffff"/>
+<text x="450" y="34" text-anchor="middle" font-size="19" font-weight="600" fill="#111827">E4 - gio bi tru oan moi nuoc, theo do tre mang</text>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="454" text-anchor="end" font-size="12.5" fill="#6b7280">0</text>
+<line x1="78" y1="372.8" x2="872" y2="372.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="376.8" text-anchor="end" font-size="12.5" fill="#6b7280">160</text>
+<line x1="78" y1="295.6" x2="872" y2="295.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="299.6" text-anchor="end" font-size="12.5" fill="#6b7280">320</text>
+<line x1="78" y1="218.4" x2="872" y2="218.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="222.4" text-anchor="end" font-size="12.5" fill="#6b7280">480</text>
+<line x1="78" y1="141.2" x2="872" y2="141.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="145.2" text-anchor="end" font-size="12.5" fill="#6b7280">640</text>
+<line x1="78" y1="64" x2="872" y2="64" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="68" text-anchor="end" font-size="12.5" fill="#6b7280">800</text>
+<line x1="78" y1="64" x2="78" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<text x="78" y="472" text-anchor="middle" font-size="12.5" fill="#374151">0</text>
+<text x="210.33333333333331" y="472" text-anchor="middle" font-size="12.5" fill="#374151">50</text>
+<text x="475" y="472" text-anchor="middle" font-size="12.5" fill="#374151">150</text>
+<text x="872" y="472" text-anchor="middle" font-size="12.5" fill="#374151">300</text>
+<text x="475" y="504" text-anchor="middle" font-size="13.5" fill="#4b5563">delay_ms</text>
+<text transform="translate(20 257) rotate(-90)" text-anchor="middle" font-size="13.5" fill="#4b5563">ms moi nuoc</text>
+<path d="M78.0,437.3 L210.3,391.8 L475.0,295.4 L872.0,153.5" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="78.0" cy="437.3" r="4" fill="#2563eb"/>
+<circle cx="210.3" cy="391.8" r="4" fill="#2563eb"/>
+<circle cx="475.0" cy="295.4" r="4" fill="#2563eb"/>
+<circle cx="872.0" cy="153.5" r="4" fill="#2563eb"/>
+<path d="M78.0,439.9 L210.3,420.5 L475.0,374.4 L872.0,249.8" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="78.0" cy="439.9" r="4" fill="#dc2626"/>
+<circle cx="210.3" cy="420.5" r="4" fill="#dc2626"/>
+<circle cx="475.0" cy="374.4" r="4" fill="#dc2626"/>
+<circle cx="872.0" cy="249.8" r="4" fill="#dc2626"/>
+<rect x="78" y="35" width="13" height="13" rx="2" fill="#2563eb"/>
+<text x="97" y="46" font-size="12.5" fill="#374151">proxied_drift_ms (false)</text>
+<rect x="268" y="35" width="13" height="13" rx="2" fill="#dc2626"/>
+<text x="287" y="46" font-size="12.5" fill="#374151">proxied_drift_ms (true)</text>
+</svg>

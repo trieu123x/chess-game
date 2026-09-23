@@ -1,0 +1,11 @@
+{
+  "name": "dcgs-web-spectator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Web Gateway (WS <-> TCP) + giao dien khan gia. Khong co dependency: WebSocket tu viet theo RFC 6455.",
+  "scripts": {
+    "start": "node gateway.js",
+    "test": "node test.js"
+  }
+}

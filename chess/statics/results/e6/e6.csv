@@ -1,0 +1,14 @@
+attack,sent,rejected,codes,expected_code,note
+nuoc di sai luat,50,50,0,0,3002x50,3002,""
+di khi khong phai luot,50,50,0,0,3001x50,3001,""
+ply cu / trung,50,49,1,0,3005x49 khong-tra-loix1,3005,""
+phong cap thieu promo,20,20,0,0,3002x20,3002/3006,"the co dau van chua co tot o a7 nen 3002 cung dung"
+MOVE cho van cua nguoi khac,50,50,0,0,3003x50,3003,"MOVE khong mang gameId: server dinh tuyen theo phien, nen khong the nham ban"
+MOVE khi chua LOGIN,20,20,0,0,2005x20,2005,""
+frame hong o muc byte,7,7,0,0,2001x5 2003x1 2005x1,2001/2002/2003,""
+flood 300 msg tuc thi,251,251,0,0,4005x3,4005,"49 msg dau duoc phuc vu dung han muc, ket noi bi dong sau 3 lan vi pham — dung bang A6"
+
+phase,moves,p50_ms,p95_ms
+before,93,2.88,4.37
+during,179,2.04,2.91
+after,70,2.32,3.3

@@ -84,6 +84,31 @@ function validate(request) {
   }
 }
 
+/**
+ * Ben `side` co du quan de chieu het khong?
+ *
+ * Can rieng cau hoi nay cho luc HET GIO (X29): theo luat FIDE, het gio ma doi
+ * thu khong the chieu het bang bat ky chuoi nuoc di hop le nao thi van la HOA
+ * chu khong phai thua. `isInsufficientMaterial()` cua chess.js tra loi cho CA
+ * VAN chu khong cho tung ben, nen o day phai tu dem.
+ *
+ * Vua, vua + 1 tinh, vua + 1 ma: khong chieu het duoc. Hai ma thi co the (du
+ * khong ep duoc), nen tinh la du quan - dung nhu cach FIDE xu.
+ */
+function canMate(fen, side) {
+  const board = new Chess()
+  board.load(fen)
+  let minors = 0
+  for (const row of board.board()) {
+    for (const square of row) {
+      if (!square || square.color !== side) continue
+      if (square.type === 'p' || square.type === 'r' || square.type === 'q') return true
+      if (square.type === 'b' || square.type === 'n') minors += 1
+    }
+  }
+  return minors >= 2
+}
+
 function legalMoves(fen) {
   const board = new Chess()
   board.load(fen)
@@ -114,6 +139,17 @@ function handleFrame(socket, frame) {
     case cgp.T.RULES_LEGAL_MOVES: {
       const { fen } = cgp.parseJson(frame.payload)
       reply(cgp.T.RULES_LEGAL_MOVES_RESULT, { moves: legalMoves(fen) })
+      break
+    }
+
+    case cgp.T.RULES_MATERIAL: {
+      const { fen, side } = cgp.parseJson(frame.payload)
+      try {
+        reply(cgp.T.RULES_OK, { sufficient: canMate(fen, side === 'b' ? 'b' : 'w') })
+      } catch (failure) {
+        stats.errors += 1
+        reply(cgp.T.RULES_ERROR, { code: cgp.ERR.MALFORMED_FRAME, message: failure.message })
+      }
       break
     }
 

@@ -26,11 +26,15 @@ public final class MsgType {
     public static final int HISTORY_REQ = 0x0C;
     public static final int CLOCK_PING = 0x0D;
     public static final int HEARTBEAT = 0x0E;
+    /** v1.2: danh sach van dang dien ra + bang xep hang (mot vong goi duy nhat). */
+    public static final int LOBBY_REQ = 0x10;
 
     // ---------- RVP: server -> rules service (0x20..0x2F) ----------
     public static final int RULES_VALIDATE = 0x20;
     public static final int RULES_LEGAL_MOVES = 0x21;
     public static final int RULES_PING = 0x22;
+    /** v1.2: het gio thi ben con lai co du quan chieu het khong? (X29) */
+    public static final int RULES_MATERIAL = 0x23;
 
     // ---------- CGP: server -> client (0x80..0x9F) ----------
     public static final int LOGIN_OK = 0x80;
@@ -44,6 +48,7 @@ public final class MsgType {
     public static final int DRAW_OFFERED = 0x88;
     public static final int SPECTATOR_COUNT = 0x89;
     public static final int HISTORY_RESULT = 0x8A;
+    public static final int LOBBY_RESULT = 0x8B;
     public static final int HEARTBEAT_ACK = 0x8E;
     public static final int ERROR = 0x8F;
 
@@ -70,9 +75,11 @@ public final class MsgType {
             case HISTORY_REQ -> "HISTORY_REQ";
             case CLOCK_PING -> "CLOCK_PING";
             case HEARTBEAT -> "HEARTBEAT";
+            case LOBBY_REQ -> "LOBBY_REQ";
             case RULES_VALIDATE -> "RULES_VALIDATE";
             case RULES_LEGAL_MOVES -> "RULES_LEGAL_MOVES";
             case RULES_PING -> "RULES_PING";
+            case RULES_MATERIAL -> "RULES_MATERIAL";
             case LOGIN_OK -> "LOGIN_OK";
             case MATCH_FOUND -> "MATCH_FOUND";
             case GAME_SNAPSHOT -> "GAME_SNAPSHOT";
@@ -84,6 +91,7 @@ public final class MsgType {
             case DRAW_OFFERED -> "DRAW_OFFERED";
             case SPECTATOR_COUNT -> "SPECTATOR_COUNT";
             case HISTORY_RESULT -> "HISTORY_RESULT";
+            case LOBBY_RESULT -> "LOBBY_RESULT";
             case HEARTBEAT_ACK -> "HEARTBEAT_ACK";
             case ERROR -> "ERROR";
             case RULES_OK -> "RULES_OK";
@@ -97,7 +105,7 @@ public final class MsgType {
     /** Message nay chi hop le sau khi da dang nhap? (ngoai le X07 -> ERROR 2005). */
     public static boolean requiresSession(int type) {
         return switch (type) {
-            case LOGIN, RESUME, HEARTBEAT, CLOCK_PING -> false;
+            case LOGIN, RESUME, HEARTBEAT, CLOCK_PING, LOBBY_REQ -> false;
             default -> type < 0x80;
         };
     }

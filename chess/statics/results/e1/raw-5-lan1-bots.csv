@@ -1,0 +1,11 @@
+label,format,games,username,game_id,color,login_ms,plies,result,reason,move_p50_ms,rejects,resumes,recovery_ms,bytes_in,bytes_out,error
+e1-5,binary,5,bot_1,205,w,219.79,60,0-1,resign,8.06,0,0,,0,0,2556,611,
+e1-5,binary,5,bot_2,205,b,18.55,60,0-1,resign,9.21,0,0,,0,0,2555,602,
+e1-5,binary,5,bot_3,206,w,3.79,60,0-1,resign,7.02,0,0,,0,0,2562,611,
+e1-5,binary,5,bot_4,206,b,4.14,60,0-1,resign,11.58,0,0,,0,0,2562,602,
+e1-5,binary,5,bot_5,207,w,3.98,60,0-1,resign,7.31,0,0,,0,0,2560,620,
+e1-5,binary,5,bot_6,207,b,76.21,60,0-1,resign,14.13,0,0,,0,0,2550,602,
+e1-5,binary,5,bot_7,208,w,7.8,60,0-1,resign,8.72,0,0,,0,0,2565,611,
+e1-5,binary,5,bot_8,208,b,4.7,60,0-1,resign,9.85,0,0,,0,0,2564,602,
+e1-5,binary,5,bot_9,209,w,4.26,60,0-1,resign,4.82,0,0,,0,0,2572,611,
+e1-5,binary,5,bot_10,209,b,3.41,60,0-1,resign,6.63,0,0,,0,0,2571,603,

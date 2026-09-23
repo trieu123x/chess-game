@@ -6,7 +6,9 @@
   "description": "Bot sinh tai cho Game Server - noi CGP tren TCP",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "test": "node --test games.test.js",
+    "load": "node bot.js --play --games 20"
   },
   "dependencies": {
     "chess.js": "^1.4.0"

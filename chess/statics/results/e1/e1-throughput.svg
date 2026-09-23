@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="900" height="520" fill="#ffffff"/>
+<text x="450" y="34" text-anchor="middle" font-size="19" font-weight="600" fill="#111827">E1 - thong luong theo so ban</text>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="454" text-anchor="end" font-size="12.5" fill="#6b7280">0</text>
+<line x1="78" y1="372.8" x2="872" y2="372.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="376.8" text-anchor="end" font-size="12.5" fill="#6b7280">60</text>
+<line x1="78" y1="295.6" x2="872" y2="295.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="299.6" text-anchor="end" font-size="12.5" fill="#6b7280">120</text>
+<line x1="78" y1="218.4" x2="872" y2="218.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="222.4" text-anchor="end" font-size="12.5" fill="#6b7280">180</text>
+<line x1="78" y1="141.2" x2="872" y2="141.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="145.2" text-anchor="end" font-size="12.5" fill="#6b7280">240</text>
+<line x1="78" y1="64" x2="872" y2="64" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="68" text-anchor="end" font-size="12.5" fill="#6b7280">300</text>
+<line x1="78" y1="64" x2="78" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<text x="78" y="472" text-anchor="middle" font-size="12.5" fill="#374151">10</text>
+<text x="430.88888888888886" y="472" text-anchor="middle" font-size="12.5" fill="#374151">50</text>
+<text x="872" y="472" text-anchor="middle" font-size="12.5" fill="#374151">100</text>
+<text x="475" y="504" text-anchor="middle" font-size="13.5" fill="#4b5563">games</text>
+<text transform="translate(20 257) rotate(-90)" text-anchor="middle" font-size="13.5" fill="#4b5563">nuoc di / giay</text>
+<path d="M78.0,333.8 L430.9,127.8 L872.0,88.7" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="78.0" cy="333.8" r="4" fill="#2563eb"/>
+<circle cx="430.9" cy="127.8" r="4" fill="#2563eb"/>
+<circle cx="872.0" cy="88.7" r="4" fill="#2563eb"/>
+</svg>

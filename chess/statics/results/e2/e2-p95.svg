@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="900" height="520" fill="#ffffff"/>
+<text x="450" y="34" text-anchor="middle" font-size="19" font-weight="600" fill="#111827">E2 - p95 theo so ban: nio vs blocking</text>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="454" text-anchor="end" font-size="12.5" fill="#6b7280">0</text>
+<line x1="78" y1="372.8" x2="872" y2="372.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="376.8" text-anchor="end" font-size="12.5" fill="#6b7280">24</text>
+<line x1="78" y1="295.6" x2="872" y2="295.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="299.6" text-anchor="end" font-size="12.5" fill="#6b7280">48</text>
+<line x1="78" y1="218.4" x2="872" y2="218.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="222.4" text-anchor="end" font-size="12.5" fill="#6b7280">72</text>
+<line x1="78" y1="141.2" x2="872" y2="141.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="145.2" text-anchor="end" font-size="12.5" fill="#6b7280">96</text>
+<line x1="78" y1="64" x2="872" y2="64" stroke="#e5e7eb" stroke-width="1"/>
+<text x="68" y="68" text-anchor="end" font-size="12.5" fill="#6b7280">120</text>
+<line x1="78" y1="64" x2="78" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<line x1="78" y1="450" x2="872" y2="450" stroke="#9ca3af" stroke-width="1.5"/>
+<text x="78" y="472" text-anchor="middle" font-size="12.5" fill="#374151">10</text>
+<text x="430.88888888888886" y="472" text-anchor="middle" font-size="12.5" fill="#374151">50</text>
+<text x="872" y="472" text-anchor="middle" font-size="12.5" fill="#374151">100</text>
+<text x="475" y="504" text-anchor="middle" font-size="13.5" fill="#4b5563">games</text>
+<text transform="translate(20 257) rotate(-90)" text-anchor="middle" font-size="13.5" fill="#4b5563">ms</text>
+<path d="M78.0,370.0 L430.9,232.5 L872.0,120.4" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="78.0" cy="370.0" r="4" fill="#2563eb"/>
+<circle cx="430.9" cy="232.5" r="4" fill="#2563eb"/>
+<circle cx="872.0" cy="120.4" r="4" fill="#2563eb"/>
+<path d="M78.0,365.0 L430.9,208.4 L872.0,72.1" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="78.0" cy="365.0" r="4" fill="#dc2626"/>
+<circle cx="430.9" cy="208.4" r="4" fill="#dc2626"/>
+<circle cx="872.0" cy="72.1" r="4" fill="#dc2626"/>
+<rect x="78" y="35" width="13" height="13" rx="2" fill="#2563eb"/>
+<text x="97" y="46" font-size="12.5" fill="#374151">p95_ms (nio)</text>
+<rect x="268" y="35" width="13" height="13" rx="2" fill="#dc2626"/>
+<text x="287" y="46" font-size="12.5" fill="#374151">p95_ms (blocking)</text>
+</svg>

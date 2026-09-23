@@ -11,7 +11,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -383,6 +385,111 @@ public final class Database implements AutoCloseable {
                 statement.executeUpdate();
             }
             return null;
+        });
+    }
+
+    // --------------------------------------------------------- bang xep hang
+
+    public record LeaderRow(String username, int elo, int played, int won) {
+    }
+
+    /**
+     * Bang xep hang theo Elo.
+     *
+     * Chi tinh nhung tai khoan da danh it nhat mot van da ket thuc: neu khong,
+     * 400 tai khoan bot moi tao deu 1200 diem se chiem het bang.
+     */
+    public List<LeaderRow> leaderboard(int limit) {
+        return withConnection(connection -> {
+            String sql = """
+                    SELECT u.username, u.elo,
+                           count(g.id) AS played,
+                           count(*) FILTER (WHERE (g.white_id = u.id AND g.result = '1-0')
+                                              OR (g.black_id = u.id AND g.result = '0-1')) AS won
+                    FROM users u
+                    JOIN games g ON (g.white_id = u.id OR g.black_id = u.id) AND g.status = 'FINISHED'
+                    GROUP BY u.id, u.username, u.elo
+                    ORDER BY u.elo DESC, played DESC
+                    LIMIT ?""";
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setInt(1, limit);
+                try (ResultSet rows = statement.executeQuery()) {
+                    List<LeaderRow> board = new ArrayList<>();
+                    while (rows.next()) {
+                        board.add(new LeaderRow(rows.getString("username"), rows.getInt("elo"),
+                                rows.getInt("played"), rows.getInt("won")));
+                    }
+                    return board;
+                }
+            }
+        });
+    }
+
+    // ------------------------------------------------------- xem lai van cu
+
+    public record GameRow(long id, String white, String black, String timeControl,
+                          String status, String result, String reason, String pgn) {
+    }
+
+    private static final String GAME_SELECT = """
+            SELECT g.id, w.username AS white, b.username AS black, g.time_control,
+                   g.status, g.result, g.reason, g.pgn
+            FROM games g JOIN users w ON w.id = g.white_id JOIN users b ON b.id = g.black_id
+            """;
+
+    private static GameRow readGame(ResultSet rows) throws SQLException {
+        return new GameRow(rows.getLong("id"), rows.getString("white"), rows.getString("black"),
+                rows.getString("time_control"), rows.getString("status"),
+                rows.getString("result"), rows.getString("reason"), rows.getString("pgn"));
+    }
+
+    public Optional<GameRow> findGame(long gameId) {
+        return withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(GAME_SELECT + " WHERE g.id = ?")) {
+                statement.setLong(1, gameId);
+                try (ResultSet rows = statement.executeQuery()) {
+                    return rows.next() ? Optional.of(readGame(rows)) : Optional.empty();
+                }
+            }
+        });
+    }
+
+    /** Van vua ket thuc cua mot nguoi choi - de tra loi RESUME sau khi van da xong (X13). */
+    public Optional<GameRow> findLastFinishedGame(long userId) {
+        return withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(GAME_SELECT
+                    + " WHERE (g.white_id = ? OR g.black_id = ?) AND g.status = 'FINISHED'"
+                    + " ORDER BY g.ended_at DESC LIMIT 1")) {
+                statement.setLong(1, userId);
+                statement.setLong(2, userId);
+                try (ResultSet rows = statement.executeQuery()) {
+                    return rows.next() ? Optional.of(readGame(rows)) : Optional.empty();
+                }
+            }
+        });
+    }
+
+    public record MoveRow(int ply, String uci, String san, String fenAfter,
+                          int clockWhiteMs, int clockBlackMs) {
+    }
+
+    /** Nuoc di cua mot van, theo thu tu - nguon de phat lai va de xem lai. */
+    public List<MoveRow> movesOf(long gameId) {
+        return withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT ply, uci, san, fen_after, clock_w_ms, clock_b_ms "
+                            + "FROM moves WHERE game_id = ? ORDER BY ply")) {
+                statement.setLong(1, gameId);
+                try (ResultSet rows = statement.executeQuery()) {
+                    List<MoveRow> moves = new ArrayList<>();
+                    while (rows.next()) {
+                        moves.add(new MoveRow(rows.getInt("ply"), rows.getString("uci"),
+                                rows.getString("san"), rows.getString("fen_after"),
+                                rows.getInt("clock_w_ms"), rows.getInt("clock_b_ms")));
+                    }
+                    return moves;
+                }
+            }
         });
     }
 

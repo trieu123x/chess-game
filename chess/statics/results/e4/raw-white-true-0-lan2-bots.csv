@@ -1,0 +1,3 @@
+label,format,games,username,game_id,color,login_ms,plies,result,reason,move_p50_ms,rejects,resumes,recovery_ms,moves_lost,waits,bytes_in,bytes_out,error
+e4-truc-tiep,binary,1,bot_201,4654,w,188.66,40,0-1,resign,2.92,0,0,,0,0,1953,452,
+e4-truc-tiep,binary,1,bot_202,4654,b,190.95,40,0-1,resign,3.18,0,0,,0,0,1952,443,

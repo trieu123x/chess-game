@@ -1,0 +1,3 @@
+label,format,games,username,game_id,color,login_ms,plies,result,reason,move_p50_ms,rejects,resumes,recovery_ms,moves_lost,waits,bytes_in,bytes_out,error
+e4-qua-proxy,binary,1,bot_203,4655,w,22.46,40,0-1,resign,29.05,0,0,,0,0,1957,452,
+e4-qua-proxy,binary,1,bot_204,4655,b,22.43,40,0-1,resign,28.33,0,0,,0,0,1956,443,

@@ -4,8 +4,8 @@
 #   docker compose up -d --build
 #
 # Profile:
-#   (mac dinh)  postgres + server + web-client   -> chay duoc ngay hom nay
-#   full        them rules-service x2, gateway, bot  -> khi code cac module do xong
+#   (mac dinh)  postgres + rules x2 + server + gateway + web-client  -> chay duoc het
+#   full        them bot sinh tai (chi dung khi muon sinh tai trong container)
 #
 # Cong tren may that duoc doi de KHONG dung voi dich vu dang chay san:
 #   PostgreSQL trong container: 5433  (PostgreSQL 18 cai truc tiep van giu 5432)
@@ -44,6 +44,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rules-1:
+        condition: service_started
+      rules-2:
+        condition: service_started
     environment:
       # Ghi de config.properties - xem Config.java: server.port -> SERVER_PORT
       SERVER_PORT: "5555"
@@ -57,11 +61,11 @@ services:
       DB_USER: "dcgs_app"
       DB_PASSWORD: "dcgs_app_pw"
       LOG_LEVEL: "INFO"
-    # Bo --check khi lop mang da duoc trien khai (PLAN.md tuan 1-2)
-    command: ["--config", "/app/config.properties", "--check"]
+    # Server chay day du; rules-1 va rules-2 phai len truoc (xem depends_on).
+    command: ["--config", "/app/config.properties"]
     ports:
       - "5555:5555"
-    restart: "no"
+    restart: unless-stopped
 
   # -------------------------------------------------------------- web client
   web-client:
@@ -76,7 +80,6 @@ services:
 
   # ------------------------------------------- rules service (stateless x N)
   rules-1:
-    profiles: ["full"]
     build:
       context: ./source
       dockerfile: rules-service/Dockerfile
@@ -86,7 +89,6 @@ services:
     restart: unless-stopped
 
   rules-2:
-    profiles: ["full"]
     build:
       context: ./source
       dockerfile: rules-service/Dockerfile
@@ -97,7 +99,6 @@ services:
 
   # ----------------------------------------------- web gateway (WS <-> TCP)
   gateway:
-    profiles: ["full"]
     build:
       context: ./source
       dockerfile: web-spectator/Dockerfile
