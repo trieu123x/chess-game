@@ -33,6 +33,7 @@ public final class Main {
     private static final int CONNECT_TIMEOUT_MS = 5_000;
     private static final int READ_TIMEOUT_MS = 10_000;
 
+    /** Diem vao: doc tham so dong lenh, ket noi server roi chay kich ban kiem tra LOGIN -> CLOCK_PING -> HEARTBEAT -> QUEUE_JOIN -> LOGOUT. */
     public static void main(String[] args) {
         String host = "127.0.0.1";
         int port = 5555;
@@ -156,11 +157,13 @@ public final class Main {
         long bytesIn;
         long bytesOut;
 
+        /** Tao phien tren socket da ket noi, lay luong vao/ra cua socket. */
         Session(Socket socket) throws IOException {
             this.in = socket.getInputStream();
             this.out = socket.getOutputStream();
         }
 
+        /** Dong goi va gui mot frame voi SEQ tu tang, dem so byte da gui. */
         void send(int type, byte[] payload) throws IOException {
             ByteBuffer frame = FrameCodec.encode(type, seq++, payload);
             byte[] bytes = new byte[frame.remaining()];

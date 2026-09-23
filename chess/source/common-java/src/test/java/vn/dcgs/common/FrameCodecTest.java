@@ -20,12 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class FrameCodecTest {
 
+    /** Doc het noi dung ByteBuffer ra mang byte. */
     private static byte[] bytes(ByteBuffer buffer) {
         byte[] out = new byte[buffer.remaining()];
         buffer.get(out);
         return out;
     }
 
+    /** Kiem tra encode roi decode giu nguyen type, seq va payload. */
     @Test
     @DisplayName("encode roi decode tra lai dung type, seq va payload")
     void roundTrip() {
@@ -40,6 +42,7 @@ class FrameCodecTest {
         assertArrayEquals(payload, frames.get(0).payload());
     }
 
+    /** Kiem tra mot frame bi chia thanh 3 lan nhan van decode ra dung 1 frame. */
     @Test
     @DisplayName("T02a - mot frame bi cat lam 3 lan ghi van decode dung")
     void halfPacket() {
@@ -58,6 +61,7 @@ class FrameCodecTest {
         assertEquals(MsgType.GAME_SNAPSHOT, frames.get(0).type());
     }
 
+    /** Kiem tra 5 frame dinh lien trong mot lan nhan decode ra du 5 frame dung thu tu. */
     @Test
     @DisplayName("T02b - 5 frame trong mot lan ghi decode ra dung 5 message")
     void coalescedPackets() {
@@ -76,6 +80,7 @@ class FrameCodecTest {
         }
     }
 
+    /** Kiem tra LEN vuot 64 KiB bi tu choi voi ma 2003 va phai dong ket noi. */
     @Test
     @DisplayName("T01 - LEN vuot 64 KiB bi tu choi 2003, khong cap phat bo nho theo LEN")
     void oversizeFrameRejected() {
@@ -89,6 +94,7 @@ class FrameCodecTest {
         assertTrue(failure.closesConnection());
     }
 
+    /** Kiem tra LEN nho hon 5 bi tu choi voi ma 2001. */
     @Test
     @DisplayName("T01 - LEN nho hon 5 bi tu choi 2001")
     void underlengthFrameRejected() {
@@ -101,6 +107,7 @@ class FrameCodecTest {
         assertEquals(ErrorCode.MALFORMED_FRAME, failure.code());
     }
 
+    /** Kiem tra ma hoa/giai ma MOVE 8 byte giu nguyen nuoc di. */
     @Test
     @DisplayName("Nuoc di di qua duong day 8 byte va khong doi noi dung")
     void moveRoundTrip() {
@@ -112,6 +119,7 @@ class FrameCodecTest {
         assertEquals(move, MoveCodec.decodeMove(wire));
     }
 
+    /** Kiem tra nuoc phong cap giu dung quan duoc chon sau khi ma hoa/giai ma. */
     @Test
     @DisplayName("Nuoc phong cap giu dung quan duoc chon")
     void promotionRoundTrip() {
@@ -122,6 +130,7 @@ class FrameCodecTest {
         assertEquals("e7e8n", decoded.uci());
     }
 
+    /** Kiem tra ma hoa/giai ma MOVE_APPLIED 16 byte giu nguyen du lieu va flags. */
     @Test
     @DisplayName("MOVE_APPLIED day 16 byte, mang ca hai dong ho")
     void moveAppliedRoundTrip() {
@@ -136,6 +145,7 @@ class FrameCodecTest {
         assertTrue(decoded.has(MoveCodec.FLAG_CHECK));
     }
 
+    /** Kiem tra quy uoc chi so o (a1 = 0, h8 = 63) va chuyen doi hai chieu. */
     @Test
     @DisplayName("Chi so o co khop quy uoc a1 = 0, h8 = 63")
     void squareIndexing() {
@@ -148,6 +158,7 @@ class FrameCodecTest {
         }
     }
 
+    /** Kiem tra MOVE_APPLIED nhi phan nho hon JSON kem FEN it nhat 5 lan. */
     @Test
     @DisplayName("Dong ho: 16 byte MOVE_APPLIED re hon nhieu so voi JSON kem FEN (co so cua E3)")
     void binaryIsSmallerThanJson() {

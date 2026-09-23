@@ -30,6 +30,7 @@ import java.nio.file.Path;
  */
 public final class Main {
 
+    /** Diem vao: doc tham so va cau hinh, kiem tra database, khoi tao rules/game/lop mang, dang ky shutdown hook roi chay vong lap server. */
     public static void main(String[] args) throws Exception {
         Path configPath = Path.of("config.properties");
         boolean checkOnly = false;

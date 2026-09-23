@@ -15,9 +15,11 @@ public final class Elo {
 
     public static final int K = 32;
 
+    /** Lop tien ich, khong cho tao instance. */
     private Elo() {
     }
 
+    /** Tinh diem ky vong (0..1) cua nguoi choi co rating `rating` khi gap doi thu `opponentRating`. */
     public static double expected(int rating, int opponentRating) {
         return 1.0 / (1.0 + Math.pow(10, (opponentRating - rating) / 400.0));
     }

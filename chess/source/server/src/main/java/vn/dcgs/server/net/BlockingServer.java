@@ -41,6 +41,7 @@ public final class BlockingServer implements CgpServer {
     private ServerSocket acceptor;
     private volatile boolean running;
 
+    /** Doc cau hinh cong, dia chi bind, so ket noi toi da va kich thuoc hang doi gui. */
     public BlockingServer(Config config, ServerCore core) {
         this.core = core;
         this.port = config.getInt("server.port", 5555);
@@ -49,6 +50,7 @@ public final class BlockingServer implements CgpServer {
         this.sendQueueMax = config.getInt("conn.sendQueueMax", 256);
     }
 
+    /** Mo ServerSocket va bind vao dia chi/cong da cau hinh. */
     @Override
     public void start() throws IOException {
         acceptor = new ServerSocket();
@@ -60,6 +62,7 @@ public final class BlockingServer implements CgpServer {
         System.out.println("  che do baseline cua E2: moi ket noi ton 2 thread");
     }
 
+    /** Chay thread quet dinh ky (heartbeat, timeout) roi vong lap accept ket noi moi cho toi khi server dong. */
     @Override
     public void run() {
         // Viec dinh ky (heartbeat, timeout) o che do nio nam trong vong lap
@@ -96,6 +99,7 @@ public final class BlockingServer implements CgpServer {
         }
     }
 
+    /** Xu ly ket noi vua accept: qua tai thi gui ERROR 4003 roi dong; nguoc lai tao Connection va 2 thread doc/ghi rieng. */
     private void onAccepted(Socket socket) throws IOException {
         if (core.openConnections() >= maxConnections) {
             core.countRejected();
@@ -176,6 +180,7 @@ public final class BlockingServer implements CgpServer {
         }
     }
 
+    /** Dong socket, bo qua moi loi. */
     private static void closeQuietly(Socket socket) {
         try {
             socket.close();
@@ -184,11 +189,13 @@ public final class BlockingServer implements CgpServer {
         }
     }
 
+    /** Thong ke cua core kem so thread I/O dang chay. */
     @Override
     public String stats() {
         return core.stats() + String.format(" [blocking, %d thread I/O dang song]", liveThreads.get());
     }
 
+    /** Dung vong lap accept, dong moi ket noi va dong ServerSocket. */
     @Override
     public void close() {
         running = false;
@@ -212,12 +219,14 @@ public final class BlockingServer implements CgpServer {
         private final String remote;
         private volatile Thread writer;
 
+        /** Boc socket va lay luong ghi, ghi lai dia chi ben kia. */
         SocketTransport(Socket socket) throws IOException {
             this.socket = socket;
             this.out = socket.getOutputStream();
             this.remote = String.valueOf(socket.getRemoteSocketAddress());
         }
 
+        /** Ghi het noi dung buffer xuong socket (chan cho toi khi xong). */
         @Override
         public int write(ByteBuffer buffer) throws IOException {
             int count = buffer.remaining();
@@ -228,11 +237,13 @@ public final class BlockingServer implements CgpServer {
             return count;
         }
 
+        /** Danh thuc thread ghi cua ket noi vi co du lieu moi trong hang doi. */
         @Override
         public void wantWrite(Connection connection) {
             connection.signalWriter();
         }
 
+        /** Khong dung o che do blocking. */
         @Override
         public void writeInterest(boolean enabled) {
             // Khong co khai niem nay o che do chan: thread ghi tu cho hang doi.
@@ -269,6 +280,7 @@ public final class BlockingServer implements CgpServer {
             }
         }
 
+        /** Tra ve dia chi ben kia cua socket. */
         @Override
         public String remote() {
             return remote;

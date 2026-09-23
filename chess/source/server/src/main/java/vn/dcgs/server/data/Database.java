@@ -39,6 +39,7 @@ public final class Database implements AutoCloseable {
     private int created;
     private volatile boolean closed;
 
+    /** Luu thong tin ket noi JDBC va cau hinh pool; ket noi chi duoc mo khi can (lazy). */
     public Database(String url, String user, String password, int size, long timeoutMs) {
         this.url = url;
         this.user = user;
@@ -49,6 +50,7 @@ public final class Database implements AutoCloseable {
 
     // ---------------------------------------------------------------- pool
 
+    /** Muon mot ket noi tu pool: lay ket noi ranh, chua du so luong thi mo moi, het thi cho toi da timeoutMs roi bao loi 4002. */
     private Connection borrow() {
         synchronized (pool) {
             long deadline = System.currentTimeMillis() + timeoutMs;
@@ -83,6 +85,7 @@ public final class Database implements AutoCloseable {
         }
     }
 
+    /** Tra ket noi ve pool va danh thuc mot thread dang cho. */
     private void release(Connection connection) {
         synchronized (pool) {
             pool.addLast(connection);
@@ -91,9 +94,11 @@ public final class Database implements AutoCloseable {
     }
 
     private interface Work<T> {
+        /** Cong viec chay tren mot ket noi JDBC, duoc phep nem SQLException. */
         T run(Connection connection) throws SQLException;
     }
 
+    /** Muon ket noi, chay cong viec roi tra ket noi ve pool; doi SQLException thanh CgpException 4002. */
     private <T> T withConnection(Work<T> work) {
         Connection connection = borrow();
         try {
@@ -122,6 +127,7 @@ public final class Database implements AutoCloseable {
     public record UserRow(long id, String username, String passwordHash, int elo) {
     }
 
+    /** Tim nguoi dung theo ten dang nhap. */
     public Optional<UserRow> findUser(String username) {
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -139,6 +145,7 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /** Tim nguoi dung theo id. */
     public Optional<UserRow> findUserById(long userId) {
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -156,6 +163,7 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /** Tao tai khoan moi va tra ve id; ten da ton tai thi nem loi 1004. */
     public long createUser(String username, String passwordHash) {
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -206,11 +214,13 @@ public final class Database implements AutoCloseable {
     // ------------------------------------------------------------- sessions
 
     public record SessionRow(UUID token, long userId, Long gameId, long expiresAtMs) {
+        /** Phien da qua thoi diem het han chua. */
         public boolean expired() {
             return System.currentTimeMillis() > expiresAtMs;
         }
     }
 
+    /** Tao phien dang nhap moi voi token ngau nhien va thoi han ttlMs, tra ve token. */
     public UUID createSession(long userId, long ttlMs) {
         UUID token = UUID.randomUUID();
         withConnection(connection -> {
@@ -226,6 +236,7 @@ public final class Database implements AutoCloseable {
         return token;
     }
 
+    /** Tim phien theo token. */
     public Optional<SessionRow> findSession(UUID token) {
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -259,6 +270,7 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /** Xoa phien theo token (dang xuat hoac phien het han). */
     public void deleteSession(UUID token) {
         withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -270,6 +282,7 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /** Xoa moi phien da het han, tra ve so phien bi xoa. */
     public int deleteExpiredSessions() {
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -281,6 +294,7 @@ public final class Database implements AutoCloseable {
 
     // ---------------------------------------------------------------- games
 
+    /** Tao ban ghi van moi o trang thai IN_PROGRESS va tra ve id van. */
     public long createGame(long whiteId, long blackId, String timeControl) {
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -297,6 +311,7 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /** Cap nhat trang thai cua van (vi du PAUSED, IN_PROGRESS). */
     public void setGameStatus(long gameId, String status) {
         withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -309,6 +324,7 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /** Danh dau van da ket thuc, luu ket qua, ly do, PGN va thoi diem ket thuc. */
     public void finishGame(long gameId, String result, String reason, String pgn) {
         withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
@@ -437,12 +453,14 @@ public final class Database implements AutoCloseable {
             FROM games g JOIN users w ON w.id = g.white_id JOIN users b ON b.id = g.black_id
             """;
 
+    /** Doc mot dong ket qua truy van thanh GameRow. */
     private static GameRow readGame(ResultSet rows) throws SQLException {
         return new GameRow(rows.getLong("id"), rows.getString("white"), rows.getString("black"),
                 rows.getString("time_control"), rows.getString("status"),
                 rows.getString("result"), rows.getString("reason"), rows.getString("pgn"));
     }
 
+    /** Tim van theo id, kem ten hai nguoi choi. */
     public Optional<GameRow> findGame(long gameId) {
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(GAME_SELECT + " WHERE g.id = ?")) {
@@ -493,6 +511,7 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /** Dong pool: dong moi ket noi ranh va danh thuc cac thread dang cho de chung bao loi. */
     @Override
     public void close() {
         synchronized (pool) {

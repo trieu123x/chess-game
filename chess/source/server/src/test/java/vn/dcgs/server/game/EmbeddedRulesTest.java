@@ -24,6 +24,7 @@ class EmbeddedRulesTest {
 
     private final EmbeddedRules rules = new EmbeddedRules();
 
+    /** Dem so the co (perft) tu the co ban dau toi do sau 4 va so voi so lieu chuan. */
     @Test
     @DisplayName("perft the co ban dau khop so lieu chuan toi do sau 4")
     void perftFromStart() {
@@ -34,6 +35,7 @@ class EmbeddedRulesTest {
         assertEquals(197_281, start.perft(4));
     }
 
+    /** Perft the co Kiwipete toi do sau 3 - kiem tra nhap thanh, ghim quan, bat tot qua duong. */
     @Test
     @DisplayName("perft the co Kiwipete - phu nhap thanh, ghim va bat tot qua duong")
     void perftKiwipete() {
@@ -46,6 +48,7 @@ class EmbeddedRulesTest {
         assertEquals(97_862, position.perft(3));
     }
 
+    /** Perft the co chuan so 3 toi do sau 4 - kiem tra bay bat tot qua duong va phong cap. */
     @Test
     @DisplayName("perft the co 3 - bay bat tot qua duong va phong cap")
     void perftPosition3() {
@@ -56,6 +59,7 @@ class EmbeddedRulesTest {
         assertEquals(43_238, position.perft(4));
     }
 
+    /** Perft the co chuan so 4 toi do sau 3 - vua bi chieu ngay tu dau. */
     @Test
     @DisplayName("perft the co 4 - vua bi chieu ngay tu dau")
     void perftPosition4() {
@@ -66,6 +70,7 @@ class EmbeddedRulesTest {
         assertEquals(9_467, position.perft(3));
     }
 
+    /** Kiem tra nuoc e2-e4 tra ve dung SAN, UCI, trang thai va FEN sau nuoc di. */
     @Test
     @DisplayName("nuoc di thuong tra ve FEN, SAN va co dung")
     void ordinaryMove() {
@@ -77,6 +82,7 @@ class EmbeddedRulesTest {
         assertEquals("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1", verdict.fenAfter());
     }
 
+    /** Kiem tra nuoc di sai luat bi tu choi voi ma 3002. */
     @Test
     @DisplayName("nuoc di sai luat bi tu choi voi ma 3002")
     void illegalMove() {
@@ -85,6 +91,7 @@ class EmbeddedRulesTest {
         assertEquals(ErrorCode.ILLEGAL_MOVE, verdict.errorCode());
     }
 
+    /** Kiem tra phong cap thieu quan duoc chon bi tu choi (3006), con phong Ma thi hop le. */
     @Test
     @DisplayName("phong cap thieu truong promo bi tu choi voi ma 3006, khong tu chon Hau (X27)")
     void promotionNeedsChoice() {
@@ -98,6 +105,7 @@ class EmbeddedRulesTest {
         assertEquals("a8=N", knight.san());
     }
 
+    /** Kiem tra nhan dien chieu het va bat co FLAG_CHECKMATE. */
     @Test
     @DisplayName("chieu het duoc nhan dien va co FLAG_CHECKMATE duoc bat")
     void detectsCheckmate() {
@@ -111,6 +119,7 @@ class EmbeddedRulesTest {
         assertTrue(verdict.endsGame());
     }
 
+    /** Kiem tra nhan dien hoa vi het nuoc (stalemate). */
     @Test
     @DisplayName("het nuoc di ma khong bi chieu la hoa vi het nuoc")
     void detectsStalemate() {
@@ -119,6 +128,7 @@ class EmbeddedRulesTest {
         assertTrue(verdict.endsGame());
     }
 
+    /** Kiem tra nhap thanh canh vua: SAN "O-O", xe di chuyen dung va bat FLAG_CASTLE. */
     @Test
     @DisplayName("nhap thanh sinh dung SAN va di chuyen ca xe")
     void castling() {
@@ -130,6 +140,7 @@ class EmbeddedRulesTest {
         assertTrue((verdict.flags() & MoveCodec.FLAG_CASTLE) != 0);
     }
 
+    /** Kiem tra bat tot qua duong: SAN dung, bat co va xoa dung quan tot bi bat. */
     @Test
     @DisplayName("bat tot qua duong xoa quan o hang cua quan di, khong phai o o den")
     void enPassant() {
@@ -142,6 +153,7 @@ class EmbeddedRulesTest {
         assertFalse(verdict.fenAfter().split(" ")[0].contains("3pP"));
     }
 
+    /** Kiem tra xac dinh thieu quan chieu het khi het gio (chi vua, vua+ma, vua+2 ma, vua+xe). */
     @Test
     @DisplayName("het gio ma doi thu chi con vua thi la hoa, khong phai thang (X29)")
     void insufficientMaterialAtTimeout() {
@@ -155,6 +167,7 @@ class EmbeddedRulesTest {
         assertFalse(rules.insufficientMaterialFor("7k/8/8/8/8/8/8/KR6 w - - 0 1", "w"));
     }
 
+    /** Kiem tra hoa vi thieu quan duoc nhan dien ngay sau nuoc an quan cuoi. */
     @Test
     @DisplayName("hoa vi thieu quan duoc nhan ngay sau nuoc an quan cuoi cung")
     void drawByInsufficientMaterial() {
@@ -165,6 +178,7 @@ class EmbeddedRulesTest {
         assertTrue(verdict.endsGame());
     }
 
+    /** Kiem tra SAN them cot xuat phat khi hai ma cung di duoc toi mot o (Nbd2). */
     @Test
     @DisplayName("SAN phan biet duoc hai quan cung loai cung di duoc toi mot o")
     void disambiguation() {

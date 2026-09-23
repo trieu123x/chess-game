@@ -47,6 +47,7 @@ class InteropTest {
         return codes;
     }
 
+    /** Doc het ByteBuffer va chuyen thanh chuoi hex thuong. */
     private static String hex(ByteBuffer buffer) {
         StringBuilder out = new StringBuilder(buffer.remaining() * 2);
         while (buffer.hasRemaining()) {
@@ -55,6 +56,7 @@ class InteropTest {
         return out.toString();
     }
 
+    /** Chuyen chuoi hex thanh mang byte. */
     private static byte[] unhex(String text) {
         byte[] out = new byte[text.length() / 2];
         for (int i = 0; i < out.length; i++) {
@@ -63,6 +65,7 @@ class InteropTest {
         return out;
     }
 
+    /** Dung payload cho mot test vector theo loai (json, move, moveApplied, clockPong). */
     private static byte[] payloadFor(JsonNode vector) throws Exception {
         JsonNode payload = vector.get("payload");
         return switch (vector.get("payloadKind").asText()) {
@@ -87,10 +90,12 @@ class InteropTest {
         };
     }
 
+    /** Lay ky tu quan phong cap tu chuoi; rong thi tra ve ' '. */
     private static char promoChar(String promo) {
         return promo == null || promo.isEmpty() ? ' ' : promo.charAt(0);
     }
 
+    /** Sinh mot test dong cho moi vector: so byte ma hoa voi hex chung va giai ma nguoc lai. */
     @TestFactory
     @DisplayName("Java sinh ra dung tung byte nhu Node/TypeScript cho moi test vector")
     List<DynamicTest> matchesSharedVectors() throws Exception {

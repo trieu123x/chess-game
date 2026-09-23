@@ -30,7 +30,9 @@ public interface Transport {
     /** NIO: bat/tat OP_WRITE. Blocking: khong lam gi (thread ghi tu cho). */
     void writeInterest(boolean enabled);
 
+    /** Dong ket noi phia duoi (socket/channel). */
     void close() throws IOException;
 
+    /** Tra ve dia chi ben kia cua ket noi (dung cho log). */
     String remote();
 }

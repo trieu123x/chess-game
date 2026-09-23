@@ -22,9 +22,11 @@ public final class Config {
 
     private final Properties properties = new Properties();
 
+    /** Chi tao qua load(), khong goi truc tiep. */
     private Config() {
     }
 
+    /** Doc file properties; neu file khong ton tai thi canh bao va dung toan gia tri mac dinh. */
     public static Config load(Path file) {
         Config config = new Config();
         if (Files.exists(file)) {
@@ -39,6 +41,7 @@ public final class Config {
         return config;
     }
 
+    /** Lay gia tri chuoi cua key: uu tien bien moi truong, sau do den file (bo phan comment sau '#'), cuoi cung la gia tri mac dinh. */
     public String get(String key, String fallback) {
         String fromEnv = System.getenv(key.toUpperCase().replace('.', '_'));
         if (fromEnv != null && !fromEnv.isBlank()) {
@@ -56,6 +59,7 @@ public final class Config {
         return value.isEmpty() ? fallback : value;
     }
 
+    /** Lay gia tri so nguyen cua key; khong phai so thi tra ve gia tri mac dinh. */
     public int getInt(String key, int fallback) {
         try {
             return Integer.parseInt(get(key, String.valueOf(fallback)));
@@ -64,6 +68,7 @@ public final class Config {
         }
     }
 
+    /** Lay gia tri boolean cua key. */
     public boolean getBoolean(String key, boolean fallback) {
         return Boolean.parseBoolean(get(key, String.valueOf(fallback)));
     }
@@ -87,6 +92,7 @@ public final class Config {
     }
 
     public record Endpoint(String host, int port) {
+        /** Hien thi endpoint dang host:port. */
         @Override
         public String toString() {
             return host + ":" + port;

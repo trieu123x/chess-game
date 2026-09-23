@@ -40,6 +40,7 @@ public final class NioServer implements CgpServer {
     private ServerSocketChannel acceptor;
     private volatile boolean running;
 
+    /** Doc cau hinh cong, dia chi bind, so ket noi toi da va kich thuoc hang doi gui. */
     public NioServer(Config config, ServerCore core) {
         this.core = core;
         this.port = config.getInt("server.port", 5555);
@@ -48,6 +49,7 @@ public final class NioServer implements CgpServer {
         this.sendQueueMax = config.getInt("conn.sendQueueMax", 256);
     }
 
+    /** Mo Selector va ServerSocketChannel khong chan, dang ky OP_ACCEPT. */
     @Override
     public void start() throws IOException {
         selector = Selector.open();
@@ -61,6 +63,7 @@ public final class NioServer implements CgpServer {
                 bind, port, core.format().name(), maxConnections);
     }
 
+    /** Vong lap selector: accept/doc/ghi theo su kien, ghi cac message thread game xep vao, va chay viec dinh ky moi giay. */
     @Override
     public void run() {
         long lastPeriodic = System.currentTimeMillis();
@@ -108,6 +111,7 @@ public final class NioServer implements CgpServer {
 
     // ---------------------------------------------------------------- accept
 
+    /** Nhan mot ket noi moi: qua tai thi gui ERROR 4003 roi dong; nguoc lai dang ky OP_READ va tao Connection. */
     private void accept() throws IOException {
         SocketChannel channel = acceptor.accept();
         if (channel == null) {
@@ -140,6 +144,7 @@ public final class NioServer implements CgpServer {
 
     // ------------------------------------------------------------------ doc
 
+    /** Doc byte tu mot ket noi san sang doc va chuyen cho core xu ly; ket noi dang nan lai thi chi nuot byte. */
     private void read(SelectionKey key) {
         Connection connection = (Connection) key.attachment();
         SocketChannel channel = (SocketChannel) key.channel();
@@ -174,10 +179,12 @@ public final class NioServer implements CgpServer {
 
     private final Map<SelectionKey, Long> lingering = new ConcurrentHashMap<>();
 
+    /** Dua ket noi vao trang thai nan lai: giu them LINGER_MS truoc khi dong han. */
     private void linger(SelectionKey key) {
         lingering.put(key, System.currentTimeMillis() + LINGER_MS);
     }
 
+    /** Dong han channel va bo khoi danh sach nan lai. */
     private void hardClose(SelectionKey key) {
         lingering.remove(key);
         try {
@@ -187,6 +194,7 @@ public final class NioServer implements CgpServer {
         }
     }
 
+    /** Dong han cac ket noi da nan lai qua thoi han. */
     private void closeExpiredLingering(long now) {
         if (lingering.isEmpty()) {
             return;
@@ -198,16 +206,19 @@ public final class NioServer implements CgpServer {
         }
     }
 
+    /** Xep ket noi vao hang can ghi va danh thuc selector (goi tu thread game). */
     private void wake(Connection connection) {
         needsFlush.add(connection);
         selector.wakeup();
     }
 
+    /** Thong ke cua core kem ghi chu che do nio. */
     @Override
     public String stats() {
         return core.stats() + " [nio, 1 selector]";
     }
 
+    /** Dung vong lap, dong moi ket noi, acceptor va selector. */
     @Override
     public void close() {
         running = false;
@@ -233,22 +244,26 @@ public final class NioServer implements CgpServer {
         private final SelectionKey key;
         private final String remote;
 
+        /** Boc SocketChannel va SelectionKey cua ket noi, ghi lai dia chi ben kia. */
         NioTransport(SocketChannel channel, SelectionKey key) throws IOException {
             this.channel = channel;
             this.key = key;
             this.remote = String.valueOf(channel.getRemoteAddress());
         }
 
+        /** Ghi khong chan: tra ve so byte ghi duoc (co the it hon so con lai). */
         @Override
         public int write(ByteBuffer buffer) throws IOException {
             return channel.write(buffer);
         }
 
+        /** Bao selector rang ket noi nay co du lieu can ghi. */
         @Override
         public void wantWrite(Connection connection) {
             wake(connection);
         }
 
+        /** Bat/tat OP_WRITE tren SelectionKey cua ket noi. */
         @Override
         public void writeInterest(boolean enabled) {
             if (!key.isValid()) {
@@ -289,6 +304,7 @@ public final class NioServer implements CgpServer {
             channel.close();
         }
 
+        /** Tra ve dia chi ben kia cua ket noi. */
         @Override
         public String remote() {
             return remote;

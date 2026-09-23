@@ -44,6 +44,7 @@ public final class DbWriter implements AutoCloseable {
     private final AtomicLong failed = new AtomicLong();
     private volatile boolean running = true;
 
+    /** Tao hang doi ghi voi suc chua `queueMax` va khoi dong `threads` thread nen de ghi xuong database. */
     public DbWriter(int queueMax, int threads, Path fallbackFile) {
         this.queue = new ArrayBlockingQueue<>(Math.max(16, queueMax));
         this.fallbackFile = fallbackFile;
@@ -73,6 +74,7 @@ public final class DbWriter implements AutoCloseable {
         }
     }
 
+    /** Vong lap cua thread ghi: lay tung viec trong hang doi ra chay; viec quan trong bi loi thi ghi ra file du phong. */
     private void drain() {
         while (running || !queue.isEmpty()) {
             Task task;
@@ -114,15 +116,18 @@ public final class DbWriter implements AutoCloseable {
         }
     }
 
+    /** So viec dang cho trong hang doi. */
     public int pending() {
         return queue.size();
     }
 
+    /** Tra ve chuoi thong ke: so viec da ghi, dang cho, bi bo, ghi ra file, loi. */
     public String stats() {
         return String.format("da ghi %d, dang cho %d, bo qua %d, ghi ra file %d, loi %d",
                 done.get(), queue.size(), dropped.get(), spilled.get(), failed.get());
     }
 
+    /** Dung nhan viec moi va cho cac thread ghi xu ly not hang doi (toi da 3 giay moi thread). */
     @Override
     public void close() {
         running = false;

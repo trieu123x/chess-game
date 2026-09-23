@@ -59,6 +59,7 @@ public final class GameActor {
         private final int elo;
         private volatile Connection connection;
 
+        /** Tao nguoi choi voi id, ten, Elo va ket noi hien tai. */
         public Player(long userId, String username, int elo, Connection connection) {
             this.userId = userId;
             this.username = username;
@@ -66,18 +67,22 @@ public final class GameActor {
             this.connection = connection;
         }
 
+        /** Id nguoi dung. */
         public long userId() {
             return userId;
         }
 
+        /** Ten dang nhap. */
         public String username() {
             return username;
         }
 
+        /** Elo luc bat dau van. */
         public int elo() {
             return elo;
         }
 
+        /** Ket noi hien tai cua nguoi choi (thay doi khi noi lai). */
         public Connection connection() {
             return connection;
         }
@@ -129,6 +134,7 @@ public final class GameActor {
     /** Khan gia. Khong duoc lam cham nguoi choi trong bat ky hoan canh nao (X58). */
     private final Set<Connection> spectators = ConcurrentHashMap.newKeySet();
 
+    /** Tao ban co moi: luu thong tin hai nguoi choi, the thuc, cau hinh va dat dong ho hai ben bang thoi gian goc. */
     public GameActor(long gameId, Player white, Player black, String timeControl,
                      int initialMs, int incrementMs, GameService.Settings settings,
                      Executor pool, RulesEngine rules, Database database, DbWriter dbWriter,
@@ -152,34 +158,42 @@ public final class GameActor {
         this.clockBlackMs = initialMs;
     }
 
+    /** Id cua van. */
     public long gameId() {
         return gameId;
     }
 
+    /** Trang thai hien tai cua van. */
     public Status status() {
         return status;
     }
 
+    /** Nguoi cam quan Trang. */
     public Player white() {
         return white;
     }
 
+    /** Nguoi cam quan Den. */
     public Player black() {
         return black;
     }
 
+    /** So nua nuoc da di. */
     public int ply() {
         return ply;
     }
 
+    /** The thuc cua van, vi du "300+2". */
     public String timeControl() {
         return timeControl;
     }
 
+    /** So khan gia dang xem. */
     public int spectatorCount() {
         return spectators.size();
     }
 
+    /** Nguoi dung co phai mot trong hai nguoi choi cua van khong. */
     public boolean hasPlayer(long userId) {
         return white.userId() == userId || black.userId() == userId;
     }
@@ -198,12 +212,14 @@ public final class GameActor {
         schedule();
     }
 
+    /** Neu chua co thread nao dang xu ly hang doi cua ban nay thi dua viec drain vao thread pool. */
     private void schedule() {
         if (draining.compareAndSet(false, true)) {
             pool.execute(this::drain);
         }
     }
 
+    /** Chay lan luot cac viec trong hang doi cho toi khi het; xong thi kiem tra lai de khong bo sot viec vua toi. */
     private void drain() {
         try {
             for (;;) {
@@ -234,6 +250,7 @@ public final class GameActor {
 
     // ---------------------------------------------------------------- bat dau
 
+    /** Bat dau van: bat dong ho, gui MATCH_FOUND cho hai nguoi choi va gui snapshot ban co. */
     public void begin() {
         submit(() -> {
             turnStartedAt = System.currentTimeMillis();
@@ -389,6 +406,7 @@ public final class GameActor {
         finish(flagged == white ? "0-1" : "1-0", "timeout");
     }
 
+    /** Xac dinh ket qua tu trang thai ket thuc: chieu het thi nguoi vua di thang, con lai la hoa. */
     private String resultFor(String status, Player mover) {
         if ("checkmate".equals(status)) {
             return mover == white ? "1-0" : "0-1";
@@ -406,6 +424,7 @@ public final class GameActor {
 
     // ------------------------------------------------------------ thao tac khac
 
+    /** Xu ly dau hang: nguoi dau hang thua, doi thu thang. */
     public void onResign(Connection from) {
         submit(() -> {
             Player mover = playerOf(from);
@@ -421,6 +440,7 @@ public final class GameActor {
         });
     }
 
+    /** Xu ly de nghi hoa: kiem tra quyen va thoi gian cho giua hai lan moi, roi gui DRAW_OFFERED cho doi thu. */
     public void onDrawOffer(Connection from) {
         submit(() -> {
             Player mover = playerOf(from);
@@ -443,6 +463,7 @@ public final class GameActor {
         });
     }
 
+    /** Xu ly tra loi de nghi hoa: chi doi thu cua nguoi moi moi tra loi duoc; dong y thi ket thuc van hoa. */
     public void onDrawReply(Connection from, boolean accept) {
         submit(() -> {
             Player replier = playerOf(from);
@@ -549,6 +570,7 @@ public final class GameActor {
 
     // ---------------------------------------------------------------- khan gia
 
+    /** Them khan gia: gui snapshot cho ho va cap nhat so khan gia cho moi nguoi. */
     public void addSpectator(Connection connection) {
         submit(() -> {
             spectators.add(connection);
@@ -558,6 +580,7 @@ public final class GameActor {
         });
     }
 
+    /** Go khan gia khoi van va cap nhat so khan gia. */
     public void removeSpectator(Connection connection) {
         submit(() -> {
             connection.spectating().remove(gameId);
@@ -567,6 +590,7 @@ public final class GameActor {
         });
     }
 
+    /** Gui so khan gia hien tai (2 byte) cho nguoi choi va khan gia. */
     private void broadcastSpectatorCount() {
         byte[] payload = ByteBuffer.allocate(2)
                 .putShort((short) Math.min(65_535, spectators.size())).array();
@@ -600,6 +624,7 @@ public final class GameActor {
         });
     }
 
+    /** Tam dung van vi loi he thong (vi du rules service chet) va bao loi cho moi nguoi dang xem/choi. */
     private void pause(int code, String message) {
         status = Status.PAUSED;
         pausedSince = System.currentTimeMillis();
@@ -638,6 +663,7 @@ public final class GameActor {
 
     // ---------------------------------------------------------------- ket thuc
 
+    /** Ket thuc van: tinh Elo, tao PGN, xep viec ghi database, gui GAME_OVER cho nguoi choi va khan gia, bao GameService don dep. */
     private void finish(String result, String reason) {
         if (status == Status.FINISHED) {
             return;
@@ -674,6 +700,7 @@ public final class GameActor {
                 gameId, result, reason, ply, deltas[0], deltas[1]);
     }
 
+    /** Gui GAME_OVER cho mot nguoi choi kem thay doi Elo cua ho va PGN. */
     private void sendGameOver(Player player, String result, String reason, int eloDelta, String pgn) {
         send(player.connection(), MsgType.GAME_OVER, Json.of(Map.of(
                 "result", result, "reason", reason, "eloDelta", eloDelta, "pgn", pgn)));
@@ -681,10 +708,12 @@ public final class GameActor {
 
     // ---------------------------------------------------------------- tro giup
 
+    /** Gui snapshot ban co hien tai cho mot ket noi. */
     public void sendSnapshotTo(Connection connection) {
         submit(() -> send(connection, MsgType.GAME_SNAPSHOT, snapshot()));
     }
 
+    /** Gui snapshot ban co cho ca hai nguoi choi va moi khan gia. */
     private void broadcastSnapshot() {
         byte[] payload = snapshot();
         send(white.connection(), MsgType.GAME_SNAPSHOT, payload);
@@ -694,6 +723,7 @@ public final class GameActor {
         }
     }
 
+    /** Dung payload JSON snapshot: FEN, danh sach nuoc, dong ho, luot, trang thai, nguoi choi, so khan gia. */
     private byte[] snapshot() {
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("gameId", gameId);
@@ -711,6 +741,7 @@ public final class GameActor {
         return Json.of(fields);
     }
 
+    /** Tim nguoi choi ung voi ket noi; khong phai nguoi choi thi tra ve null. */
     private Player playerOf(Connection connection) {
         if (white.connection() == connection) {
             return white;
@@ -718,6 +749,7 @@ public final class GameActor {
         return black.connection() == connection ? black : null;
     }
 
+    /** Tim nguoi choi theo userId; khong phai nguoi choi thi tra ve null. */
     private Player playerOf(long userId) {
         if (white.userId() == userId) {
             return white;
@@ -725,6 +757,7 @@ public final class GameActor {
         return black.userId() == userId ? black : null;
     }
 
+    /** Tra ve doi thu cua nguoi choi. */
     private Player opponentOf(Player player) {
         return player == white ? black : white;
     }
@@ -760,6 +793,7 @@ public final class GameActor {
         }
     }
 
+    /** Gui mot frame cho ket noi; neu hang doi day hoac ket noi da dong thi danh dau dong, khong lam hong ban co. */
     private void send(Connection connection, int type, byte[] payload) {
         try {
             connection.send(FrameCodec.encode(type, 0, payload));
@@ -769,14 +803,17 @@ public final class GameActor {
         }
     }
 
+    /** Gui frame ERROR voi ma loi va thong bao. */
     private void sendError(Connection connection, int code, String message) {
         send(connection, MsgType.ERROR, Json.of(Map.of("code", code, "message", message)));
     }
 
+    /** Ban sao danh sach nuoc di dang SAN. */
     public List<String> sanMoves() {
         return List.copyOf(sanMoves);
     }
 
+    /** So viec bi bo vi hang doi cua ban co bi day. */
     public long droppedFromQueue() {
         return droppedFromQueue;
     }

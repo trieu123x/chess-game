@@ -25,6 +25,7 @@ public final class MoveCodec {
 
     private static final char[] PROMO_LETTERS = {' ', 'n', 'b', 'r', 'q'};
 
+    /** Lop tien ich, khong cho tao instance. */
     private MoveCodec() {
     }
 
@@ -41,6 +42,7 @@ public final class MoveCodec {
         return rank * 8 + file;
     }
 
+    /** Chi so o 0..63 -> ten o co (vi du 12 -> "e2"). */
     public static String indexToSquare(int index) {
         if (index < 0 || index > 63) {
             throw new CgpException(ErrorCode.MALFORMED_FRAME, "chi so o khong hop le: " + index);
@@ -48,6 +50,7 @@ public final class MoveCodec {
         return "" + (char) ('a' + index % 8) + (char) ('1' + index / 8);
     }
 
+    /** Chu cai quan phong cap (n/b/r/q) -> ma so 1..4; ky tu khac tra ve 0. */
     public static int promotionCode(char piece) {
         return switch (Character.toLowerCase(piece)) {
             case 'n' -> 1;
@@ -58,6 +61,7 @@ public final class MoveCodec {
         };
     }
 
+    /** Ma so phong cap 1..4 -> chu cai quan (n/b/r/q); ma khac tra ve ' '. */
     public static char promotionLetter(int code) {
         return code >= 1 && code <= 4 ? PROMO_LETTERS[code] : ' ';
     }
@@ -65,12 +69,14 @@ public final class MoveCodec {
     /** Nuoc di client gui len. Client luon dat flags = 0; server tu tinh. */
     public record Move(String from, String to, int promotion, int ply) {
 
+        /** Bieu dien nuoc di dang UCI, vi du "e2e4" hoac "e7e8q". */
         public String uci() {
             String base = from + to;
             return promotion == 0 ? base : base + promotionLetter(promotion);
         }
     }
 
+    /** Ma hoa nuoc di thanh 8 byte: from, to, promo, flags(0), ply(2 byte), reserved(2 byte). */
     public static byte[] encodeMove(Move move) {
         ByteBuffer out = ByteBuffer.allocate(MOVE_SIZE);
         out.put((byte) squareToIndex(move.from()));
@@ -82,6 +88,7 @@ public final class MoveCodec {
         return out.array();
     }
 
+    /** Giai ma 8 byte MOVE thanh nuoc di; sai kich thuoc thi nem loi 2001. */
     public static Move decodeMove(byte[] payload) {
         if (payload.length != MOVE_SIZE) {
             throw new CgpException(ErrorCode.MALFORMED_FRAME,
@@ -103,15 +110,18 @@ public final class MoveCodec {
     public record MoveApplied(int ply, String from, String to, int promotion, int flags,
                               long clockWhiteMs, long clockBlackMs, int serverProcessMs) {
 
+        /** Kiem tra co bat mot co (flag) cu the hay khong. */
         public boolean has(int flag) {
             return (flags & flag) != 0;
         }
 
+        /** Nuoc di nay co ket thuc van khong (chieu het hoac hoa). */
         public boolean endsGame() {
             return has(FLAG_CHECKMATE) || has(FLAG_DRAW);
         }
     }
 
+    /** Ma hoa MOVE_APPLIED thanh 16 byte: ply, from, to, promo, flags, dong ho hai ben, thoi gian xu ly. */
     public static byte[] encodeMoveApplied(MoveApplied applied) {
         ByteBuffer out = ByteBuffer.allocate(MOVE_APPLIED_SIZE);
         out.putShort((short) applied.ply());
@@ -125,6 +135,7 @@ public final class MoveCodec {
         return out.array();
     }
 
+    /** Giai ma 16 byte MOVE_APPLIED; sai kich thuoc thi nem loi 2001. */
     public static MoveApplied decodeMoveApplied(byte[] payload) {
         if (payload.length != MOVE_APPLIED_SIZE) {
             throw new CgpException(ErrorCode.MALFORMED_FRAME,
@@ -144,10 +155,12 @@ public final class MoveCodec {
 
     // ---------- CLOCK_PING / CLOCK_PONG (PROTOCOL.md §A5) ----------
 
+    /** Ma hoa CLOCK_PING: moc thoi gian t1 cua client (8 byte). */
     public static byte[] encodeClockPing(long t1) {
         return ByteBuffer.allocate(8).putLong(t1).array();
     }
 
+    /** Ma hoa CLOCK_PONG: t1 (client gui), t2 (server nhan), t3 (server gui) - 24 byte. */
     public static byte[] encodeClockPong(long t1, long t2, long t3) {
         return ByteBuffer.allocate(24).putLong(t1).putLong(t2).putLong(t3).array();
     }
@@ -155,6 +168,7 @@ public final class MoveCodec {
     public record ClockPong(long t1, long t2, long t3) {
     }
 
+    /** Giai ma 24 byte CLOCK_PONG thanh bo ba moc thoi gian t1, t2, t3. */
     public static ClockPong decodeClockPong(byte[] payload) {
         if (payload.length != 24) {
             throw new CgpException(ErrorCode.MALFORMED_FRAME,

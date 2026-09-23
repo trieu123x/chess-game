@@ -59,6 +59,7 @@ public final class Connection {
     private volatile long messagesOut;
     private volatile long droppedForSlowness;
 
+    /** Tao ket noi moi voi id, transport ghi byte va gioi han hang doi gui. */
     public Connection(long id, Transport transport, int sendQueueMax) {
         this.id = id;
         this.transport = transport;
@@ -66,82 +67,102 @@ public final class Connection {
         this.remote = transport.remote();
     }
 
+    /** Id noi bo cua ket noi. */
     public long id() {
         return id;
     }
 
+    /** Transport dung de ghi byte xuong socket. */
     public Transport transport() {
         return transport;
     }
 
+    /** Bo giai ma frame rieng cua ket noi nay. */
     public FrameCodec.Decoder decoder() {
         return decoder;
     }
 
+    /** Dia chi ben kia cua ket noi. */
     public String remote() {
         return remote;
     }
 
+    /** Trang thai hien tai: NEW, AUTHENTICATED hoac CLOSING. */
     public State state() {
         return state;
     }
 
+    /** Ket noi da dang nhap thanh cong chua. */
     public boolean authenticated() {
         return state == State.AUTHENTICATED;
     }
 
+    /** Id nguoi dung da dang nhap tren ket noi nay. */
     public long userId() {
         return userId;
     }
 
+    /** Ten dang nhap cua nguoi dung tren ket noi nay. */
     public String username() {
         return username;
     }
 
+    /** Token phien dang nhap (dung cho RESUME). */
     public UUID sessionToken() {
         return sessionToken;
     }
 
+    /** Id van dang choi (0 neu khong choi van nao). */
     public long gameId() {
         return gameId;
     }
 
+    /** Gan van dang choi cho ket noi de dinh tuyen MOVE/RESIGN. */
     public void setGameId(long gameId) {
         this.gameId = gameId;
     }
 
+    /** Tap id cac van ket noi nay dang xem voi tu cach khan gia. */
     public Set<Long> spectating() {
         return spectating;
     }
 
+    /** Thoi diem mo ket noi (ms). */
     public long connectedAt() {
         return connectedAt;
     }
 
+    /** Thoi diem gan nhat nhan duoc du lieu tu client (ms). */
     public long lastSeenAt() {
         return lastSeenAt;
     }
 
+    /** RTT uoc luong (ms) do bang HEARTBEAT. */
     public long rttMs() {
         return rttMs;
     }
 
+    /** Tong so byte da nhan. */
     public long bytesIn() {
         return bytesIn;
     }
 
+    /** Tong so byte da xep de gui. */
     public long bytesOut() {
         return bytesOut;
     }
 
+    /** Tong so message da xep de gui. */
     public long messagesOut() {
         return messagesOut;
     }
 
+    /** So frame bi bo vi client doc qua cham. */
     public long droppedForSlowness() {
         return droppedForSlowness;
     }
 
+    /** Cong don so byte vua nhan. */
     public void countIn(int bytes) {
         bytesIn += bytes;
     }
@@ -156,6 +177,7 @@ public final class Connection {
         heartbeatSentAt = System.currentTimeMillis();
     }
 
+    /** Nhan HEARTBEAT_ACK: tinh mau RTT va cap nhat RTT trung binh truot (3/4 cu + 1/4 moi). */
     public void recordHeartbeatAck() {
         if (heartbeatSentAt == 0) {
             return;
@@ -165,10 +187,12 @@ public final class Connection {
         rttMs = rttMs == 0 ? sample : (rttMs * 3 + sample) / 4;
     }
 
+    /** Cap nhat thoi diem thay client hoat dong lan cuoi. */
     public void touch() {
         lastSeenAt = System.currentTimeMillis();
     }
 
+    /** Danh dau ket noi da dang nhap va luu thong tin nguoi dung, token phien. */
     public void authenticate(long userId, String username, UUID sessionToken) {
         this.state = State.AUTHENTICATED;
         this.userId = userId;
@@ -176,11 +200,13 @@ public final class Connection {
         this.sessionToken = sessionToken;
     }
 
+    /** Chuyen sang trang thai CLOSING va danh thuc thread ghi. */
     public void markClosing() {
         state = State.CLOSING;
         signalWriter();
     }
 
+    /** Rate limit theo cua so 1 giay: tra ve false (va dem vi pham) neu vuot qua maxPerSecond message. */
     public boolean allowMessage(int maxPerSecond) {
         long now = System.currentTimeMillis();
         if (now - windowStart >= 1_000) {
@@ -194,6 +220,7 @@ public final class Connection {
         return false;
     }
 
+    /** Client da vuot rate limit tu 3 lan tro len chua. */
     public boolean overRateLimitRepeatedly() {
         return rateViolations >= 3;
     }
@@ -272,6 +299,7 @@ public final class Connection {
 
     private final Object writeLock = new Object();
 
+    /** Ghi lan luot cac frame trong hang doi; ghi thieu thi bat OP_WRITE va dung, loi I/O thi danh dau dong ket noi. */
     private void flushLocked() {
         try {
             for (;;) {
@@ -298,6 +326,7 @@ public final class Connection {
         }
     }
 
+    /** Con frame nao trong hang doi gui khong. */
     public boolean hasPendingWrites() {
         synchronized (outbound) {
             return !outbound.isEmpty();
@@ -313,12 +342,14 @@ public final class Connection {
         }
     }
 
+    /** Danh thuc thread dang cho tren hang doi gui (thread ghi o che do blocking). */
     public void signalWriter() {
         synchronized (outbound) {
             outbound.notifyAll();
         }
     }
 
+    /** Mo ta ket noi de ghi log: #id(ten nguoi dung). */
     @Override
     public String toString() {
         return "#" + id + (username == null ? "(chua dang nhap)" : "(" + username + ")");

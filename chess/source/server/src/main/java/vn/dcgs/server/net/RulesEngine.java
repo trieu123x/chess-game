@@ -24,6 +24,7 @@ public interface RulesEngine extends AutoCloseable {
     record Verdict(boolean legal, String fenAfter, String san, String uci,
                    int flags, String status, int errorCode, String reason) {
 
+        /** Tao ket qua "nuoc di khong hop le" voi ma loi va ly do. */
         public static Verdict illegal(int code, String reason) {
             return new Verdict(false, null, null, null, 0, null, code, reason);
         }
@@ -34,6 +35,7 @@ public interface RulesEngine extends AutoCloseable {
         }
     }
 
+    /** Kiem tra nuoc di from->to (kem quan phong cap neu co) tren the co FEN va tra ve ket qua phan xu. */
     Verdict validate(String fen, String from, String to, String promotion);
 
     /**
@@ -48,8 +50,10 @@ public interface RulesEngine extends AutoCloseable {
     /** Con phuc vu duoc khong? Dung de dua van dang PAUSED chay tiep (X44). */
     boolean available();
 
+    /** Tra ve chuoi thong ke cua engine luat (de ghi log). */
     String stats();
 
+    /** Dong engine va giai phong tai nguyen (ket noi, thread...). */
     @Override
     void close();
 }

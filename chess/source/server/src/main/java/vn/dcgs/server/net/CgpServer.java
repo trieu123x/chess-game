@@ -14,13 +14,16 @@ import java.io.IOException;
  */
 public interface CgpServer extends AutoCloseable {
 
+    /** Mo cong lang nghe va khoi tao tai nguyen; chua bat dau phuc vu ket noi. */
     void start() throws IOException;
 
     /** Vong lap chinh - chay tren thread goi, tra ve khi server dong. */
     void run();
 
+    /** Tra ve chuoi thong ke hien tai cua server (so ket noi, so frame...) de ghi log. */
     String stats();
 
+    /** Dong server va giai phong moi ket noi, thread, socket. */
     @Override
     void close();
 }

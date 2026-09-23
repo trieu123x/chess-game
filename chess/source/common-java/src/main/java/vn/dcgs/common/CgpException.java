@@ -6,6 +6,7 @@ public class CgpException extends RuntimeException {
     private final int code;
     private final String reason;
 
+    /** Tao loi protocol voi ma loi (ErrorCode) va ly do; message cua exception co tien to "CGP <ma>". */
     public CgpException(int code, String message) {
         super("CGP " + code + ": " + message);
         this.code = code;
@@ -17,10 +18,12 @@ public class CgpException extends RuntimeException {
         return reason;
     }
 
+    /** Tra ve ma loi ErrorCode cua exception nay. */
     public int code() {
         return code;
     }
 
+    /** Kiem tra loi nay co buoc phai dong ket noi voi client hay khong. */
     public boolean closesConnection() {
         return ErrorCode.closesConnection(code);
     }

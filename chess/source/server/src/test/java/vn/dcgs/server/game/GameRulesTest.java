@@ -20,6 +20,7 @@ class GameRulesTest {
 
     // ---------------------------------------------------------------- Elo
 
+    /** Kiem tra hai nguoi cung Elo: nguoi thang +16, nguoi thua -16 (K = 32). */
     @Test
     @DisplayName("Hai nguoi cung Elo: thang duoc +16, thua mat 16")
     void equalRatingsSwapSixteen() {
@@ -28,6 +29,7 @@ class GameRulesTest {
         assertEquals(-16, deltas[1]);
     }
 
+    /** Kiem tra hai nguoi cung Elo hoa nhau thi diem khong doi. */
     @Test
     @DisplayName("Hai nguoi cung Elo hoa nhau thi khong ai doi diem")
     void equalRatingsDrawKeepsRatings() {
@@ -36,6 +38,7 @@ class GameRulesTest {
         assertEquals(0, deltas[1]);
     }
 
+    /** Kiem tra thang nguoi manh hon duoc cong nhieu diem hon thang nguoi yeu hon. */
     @Test
     @DisplayName("Thang nguoi manh hon duoc nhieu diem hon thang nguoi yeu hon")
     void upsetsAreWorthMore() {
@@ -46,6 +49,7 @@ class GameRulesTest {
         assertTrue(beatStronger[0] > 25 && beatStronger[0] <= Elo.K);
     }
 
+    /** Kiem tra tong diem ky vong cua hai ben luon bang 1. */
     @Test
     @DisplayName("Diem ky vong cua hai ben cong lai bang 1")
     void expectationsSumToOne() {
@@ -56,6 +60,7 @@ class GameRulesTest {
 
     // ---------------------------------------------------------------- PGN
 
+    /** Kiem tra PGN sinh ra co du 7 tag bat buoc va ket thuc bang ket qua van. */
     @Test
     @DisplayName("PGN co du seven tag roster va ket thuc bang ket qua")
     void pgnHasRequiredTags() {
@@ -70,6 +75,7 @@ class GameRulesTest {
         assertTrue(pgn.trim().endsWith("1-0"), "PGN phai ket thuc bang ket qua");
     }
 
+    /** Kiem tra so thu tu nuoc di chi dat truoc nuoc cua ben Trang. */
     @Test
     @DisplayName("So thu tu nuoc di danh dung cho ben Trang")
     void pgnNumbersMoves() {
@@ -79,6 +85,7 @@ class GameRulesTest {
         assertEquals("1. d4 d5 2. c4 c6 1/2-1/2", movetext);
     }
 
+    /** Kiem tra dau nhay kep trong ten nguoi choi duoc escape dung. */
     @Test
     @DisplayName("Ten nguoi choi co dau nhay duoc thoat, khong lam hong PGN")
     void pgnEscapesQuotes() {
@@ -86,6 +93,7 @@ class GameRulesTest {
         assertTrue(pgn.contains("[White \"nguoi \\\"X\\\"\"]"));
     }
 
+    /** Kiem tra van dai duoc ngat dong, khong dong nao qua 80 ky tu. */
     @Test
     @DisplayName("Van dai bi xuong dong, khong tao mot dong vo han")
     void pgnWrapsLongGames() {
@@ -100,6 +108,7 @@ class GameRulesTest {
 
     // ------------------------------------------------------------ the thuc
 
+    /** Kiem tra doc the thuc "giay+giay" thanh [thoi gian goc, thoi gian cong] tinh bang mili giay. */
     @Test
     @DisplayName("Doc the thuc '300+2' thanh mili giay")
     void parsesTimeControl() {
@@ -109,6 +118,7 @@ class GameRulesTest {
         assertEquals(0, GameService.parseTimeControl("60+0")[1]);
     }
 
+    /** Kiem tra cac chuoi the thuc sai dinh dang deu bi nem CgpException. */
     @Test
     @DisplayName("The thuc sai dinh dang bi tu choi ngay, khong tao van hong")
     void rejectsMalformedTimeControl() {

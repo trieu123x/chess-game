@@ -8,6 +8,7 @@ package vn.dcgs.common;
  */
 public final class MsgType {
 
+    /** Lop hang so, khong cho tao instance. */
     private MsgType() {
     }
 

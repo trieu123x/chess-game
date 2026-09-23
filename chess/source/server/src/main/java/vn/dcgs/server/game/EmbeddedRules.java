@@ -24,6 +24,7 @@ public final class EmbeddedRules implements RulesEngine {
     private final AtomicLong validated = new AtomicLong();
     private final AtomicLong illegal = new AtomicLong();
 
+    /** Kiem tra nuoc di from->to (kem quan phong cap) tren the co FEN; hop le thi tra ve FEN moi, SAN, UCI, flags va trang thai van. */
     @Override
     public Verdict validate(String fen, String from, String to, String promotion) {
         ChessPosition position;
@@ -103,6 +104,7 @@ public final class EmbeddedRules implements RulesEngine {
         return flags;
     }
 
+    /** Kiem tra ben `side` ("w"/"b") co KHONG du quan de chieu het hay khong. */
     @Override
     public boolean insufficientMaterialFor(String fen, String side) {
         return !ChessPosition.fromFen(fen).canMate("w".equals(side));
@@ -114,17 +116,20 @@ public final class EmbeddedRules implements RulesEngine {
         return true;
     }
 
+    /** Liet ke moi nuoc di hop le (dang UCI) cua the co FEN. */
     public List<String> legalMoves(String fen) {
         return ChessPosition.fromFen(fen).legalMoves().stream()
                 .map(ChessPosition.Move::uci).toList();
     }
 
+    /** Tra ve thong ke so nuoc hop le / bi tu choi da kiem tra. */
     @Override
     public String stats() {
         return String.format("embedded (doi chung E7): %d nuoc hop le, %d nuoc bi tu choi",
                 validated.get(), illegal.get());
     }
 
+    /** Dong engine; ban embedded khong giu tai nguyen nen khong lam gi. */
     @Override
     public void close() {
         // Khong co tai nguyen ngoai.

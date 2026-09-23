@@ -16,9 +16,11 @@ public final class PgnWriter {
     private static final DateTimeFormatter PGN_DATE = DateTimeFormatter.ofPattern("yyyy.MM.dd");
     private static final int LINE_WIDTH = 80;
 
+    /** Lop tien ich, khong cho tao instance. */
     private PgnWriter() {
     }
 
+    /** Tao chuoi PGN day du: cac tag header (nguoi choi, ket qua, ly do...) va danh sach nuoc di SAN, ngat dong o 80 ky tu. */
     public static String write(String white, String black, String result, String reason,
                                String timeControl, List<String> sanMoves) {
         StringBuilder pgn = new StringBuilder();
@@ -56,6 +58,7 @@ public final class PgnWriter {
         return pgn.toString();
     }
 
+    /** Escape dau \ va dau nhay kep trong gia tri tag PGN; null thi thay bang "?". */
     private static String escape(String value) {
         return value == null ? "?" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }

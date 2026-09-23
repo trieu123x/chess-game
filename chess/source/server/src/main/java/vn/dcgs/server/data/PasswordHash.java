@@ -16,9 +16,11 @@ import java.security.NoSuchAlgorithmException;
  */
 public final class PasswordHash {
 
+    /** Lop tien ich, khong cho tao instance. */
     private PasswordHash() {
     }
 
+    /** Tinh hash SHA-256 (dang hex thuong) cua chuoi "username:password". */
     public static String of(String username, String password) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

@@ -31,6 +31,7 @@ public final class ChessPosition {
     public record Move(int from, int to, char promo, boolean capture, boolean castle,
                        boolean enPassant) {
 
+        /** Bieu dien nuoc di dang UCI, vi du "e2e4" hoac "e7e8q". */
         public String uci() {
             return square(from) + square(to) + (promo == ' ' ? "" : String.valueOf(promo));
         }
@@ -46,6 +47,7 @@ public final class ChessPosition {
     private final int halfmove;
     private final int fullmove;
 
+    /** Tao the co tu mang 64 o va cac thong tin phu (luot di, quyen nhap thanh, o bat tot qua duong, dem nuoc). */
     private ChessPosition(char[] board, boolean whiteToMove,
                           boolean castleWhiteKing, boolean castleWhiteQueen,
                           boolean castleBlackKing, boolean castleBlackQueen,
@@ -63,6 +65,7 @@ public final class ChessPosition {
 
     // ------------------------------------------------------------------ FEN
 
+    /** Doc chuoi FEN thanh the co; FEN thieu truong hoac tran ban co thi nem IllegalArgumentException. */
     public static ChessPosition fromFen(String fen) {
         String[] parts = fen.trim().split("\\s+");
         if (parts.length < 4) {
@@ -99,6 +102,7 @@ public final class ChessPosition {
                 ep, half, full);
     }
 
+    /** Doi chuoi thanh so nguyen; khong phai so thi tra ve gia tri mac dinh. */
     private static int parseOr(String value, int fallback) {
         try {
             return Integer.parseInt(value);
@@ -107,6 +111,7 @@ public final class ChessPosition {
         }
     }
 
+    /** Xuat the co hien tai thanh chuoi FEN day du 6 truong. */
     public String toFen() {
         StringBuilder out = new StringBuilder(80);
         for (int rank = 7; rank >= 0; rank--) {
@@ -140,20 +145,24 @@ public final class ChessPosition {
         return out.toString();
     }
 
+    /** Co phai luot cua ben Trang khong. */
     public boolean whiteToMove() {
         return whiteToMove;
     }
 
+    /** So nua nuoc tu lan an quan hoac di tot gan nhat (dung cho luat 50 nuoc). */
     public int halfmove() {
         return halfmove;
     }
 
     // ------------------------------------------------------------- toa do o
 
+    /** Chi so o 0..63 -> ten o co (vi du 12 -> "e2"). */
     public static String square(int index) {
         return "" + (char) ('a' + index % 8) + (char) ('1' + index / 8);
     }
 
+    /** Ten o co -> chi so 0..63 (vi du "e2" -> 12); sai dinh dang thi nem IllegalArgumentException. */
     public static int index(String square) {
         if (square == null || square.length() != 2) {
             throw new IllegalArgumentException("o co khong hop le: " + square);
@@ -166,18 +175,22 @@ public final class ChessPosition {
         return rank * 8 + file;
     }
 
+    /** Quan nay co phai quan Trang khong (chu hoa la Trang). */
     private static boolean isWhite(char piece) {
         return piece >= 'A' && piece <= 'Z';
     }
 
+    /** Quan nay co phai cua ben dang toi luot khong. */
     private boolean mine(char piece) {
         return piece != ' ' && isWhite(piece) == whiteToMove;
     }
 
+    /** Quan nay co phai cua ben doi phuong khong. */
     private boolean theirs(char piece) {
         return piece != ' ' && isWhite(piece) != whiteToMove;
     }
 
+    /** Tra ve ky tu quan tai o `index` (' ' neu o trong). */
     public char pieceAt(int index) {
         return board[index];
     }
@@ -204,6 +217,7 @@ public final class ChessPosition {
         return legal;
     }
 
+    /** Sinh moi nuoc di theo cach di cua quan, chua loc nuoc de vua minh bi chieu. */
     private List<Move> pseudoLegalMoves() {
         List<Move> moves = new ArrayList<>(48);
         for (int from = 0; from < 64; from++) {
@@ -230,6 +244,7 @@ public final class ChessPosition {
         return moves;
     }
 
+    /** Sinh nuoc di cua tot: tien 1 o, tien 2 o tu hang xuat phat, an cheo va bat tot qua duong. */
     private void pawnMoves(int from, List<Move> moves) {
         int file = from % 8;
         int rank = from / 8;
@@ -260,6 +275,7 @@ public final class ChessPosition {
         }
     }
 
+    /** Them nuoc di cua tot; neu toi hang cuoi thi sinh du 4 lua chon phong cap (q, r, b, n). */
     private void addPawnMove(int from, int to, boolean capture, boolean castle,
                              int promoRank, List<Move> moves) {
         if (to / 8 == promoRank) {
@@ -271,6 +287,7 @@ public final class ChessPosition {
         }
     }
 
+    /** Sinh nuoc di cho quan di tung buoc (Ma, Vua) theo danh sach do lech. */
     private void stepMoves(int from, int[][] deltas, List<Move> moves) {
         int file = from % 8;
         int rank = from / 8;
@@ -288,6 +305,7 @@ public final class ChessPosition {
         }
     }
 
+    /** Sinh nuoc di cho quan truot (Xe, Tuong, Hau) theo tung huong cho toi khi bi chan. */
     private void slideMoves(int from, int[][] dirs, List<Move> moves) {
         int file = from % 8;
         int rank = from / 8;
@@ -341,10 +359,12 @@ public final class ChessPosition {
 
     // --------------------------------------------------------------- chieu
 
+    /** Ben dang toi luot co dang bi chieu khong. */
     public boolean inCheck() {
         return kingAttacked(whiteToMove);
     }
 
+    /** Vua cua ben chi dinh co dang bi tan cong khong. */
     private boolean kingAttacked(boolean whiteKing) {
         char king = whiteKing ? 'K' : 'k';
         for (int index = 0; index < 64; index++) {
@@ -383,6 +403,7 @@ public final class ChessPosition {
         return slideAttack(file, rank, BISHOP_DIRS, byWhite ? 'B' : 'b', byWhite ? 'Q' : 'q');
     }
 
+    /** Kiem tra co quan `piece` (Ma/Vua) dung o vi tri cach o dich mot buoc theo `deltas` khong. */
     private boolean stepAttack(int file, int rank, int[][] deltas, char piece) {
         for (int[] delta : deltas) {
             int targetFile = file + delta[0];
@@ -397,6 +418,7 @@ public final class ChessPosition {
         return false;
     }
 
+    /** Kiem tra theo tung huong: quan dau tien gap phai co phai `piece` hoac Hau khong. */
     private boolean slideAttack(int file, int rank, int[][] dirs, char piece, char queen) {
         for (int[] dir : dirs) {
             int targetFile = file;
@@ -519,6 +541,7 @@ public final class ChessPosition {
         return san.append(checkSuffix(after)).toString();
     }
 
+    /** Tim phan phan biet trong SAN (cot, hang hoac ca o) khi co quan cung loai khac cung di toi o dich. */
     private String disambiguate(Move move, char piece) {
         List<Move> rivals = new ArrayList<>(2);
         for (Move other : legalMoves()) {
@@ -549,6 +572,7 @@ public final class ChessPosition {
         return square(move.from());
     }
 
+    /** Hau to SAN sau nuoc di: "#" neu chieu het, "+" neu chieu, rong neu khong. */
     private static String checkSuffix(ChessPosition after) {
         if (!after.inCheck()) {
             return "";

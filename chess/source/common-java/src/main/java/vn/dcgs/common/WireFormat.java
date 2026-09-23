@@ -22,6 +22,7 @@ import java.util.Map;
  */
 public interface WireFormat {
 
+    /** Ten dinh dang ("binary" hoac "json") - dung de ghi log va chon cau hinh. */
     String name();
 
     /** Nuoc di client gui len. */
@@ -40,21 +41,25 @@ public interface WireFormat {
 
     WireFormat BINARY = new WireFormat() {
 
+        /** Ten cua dinh dang nhi phan. */
         @Override
         public String name() {
             return "binary";
         }
 
+        /** Giai ma MOVE nhi phan 8 byte thanh nuoc di. */
         @Override
         public MoveCodec.Move decodeMove(byte[] payload) {
             return MoveCodec.decodeMove(payload);
         }
 
+        /** Ma hoa nuoc di thanh MOVE nhi phan 8 byte. */
         @Override
         public byte[] encodeMove(MoveCodec.Move move) {
             return MoveCodec.encodeMove(move);
         }
 
+        /** Ma hoa MOVE_APPLIED nhi phan 16 byte; bo qua FEN va SAN (client tu suy ra). */
         @Override
         public byte[] encodeMoveApplied(MoveCodec.MoveApplied applied, String fenAfter, String san) {
             return MoveCodec.encodeMoveApplied(applied);
@@ -63,11 +68,13 @@ public interface WireFormat {
 
     WireFormat JSON = new WireFormat() {
 
+        /** Ten cua dinh dang JSON. */
         @Override
         public String name() {
             return "json";
         }
 
+        /** Giai ma MOVE dang JSON {from, to, promo, ply} thanh nuoc di. */
         @Override
         public MoveCodec.Move decodeMove(byte[] payload) {
             JsonNode node = Json.parse(payload);
@@ -79,6 +86,7 @@ public interface WireFormat {
                     Json.optionalInt(node, "ply", 0));
         }
 
+        /** Ma hoa nuoc di thanh JSON {from, to, promo, ply}. */
         @Override
         public byte[] encodeMove(MoveCodec.Move move) {
             Map<String, Object> fields = new LinkedHashMap<>();
@@ -90,6 +98,7 @@ public interface WireFormat {
             return Json.of(fields);
         }
 
+        /** Ma hoa MOVE_APPLIED dang JSON, kem ca SAN va FEN day du sau nuoc di. */
         @Override
         public byte[] encodeMoveApplied(MoveCodec.MoveApplied applied, String fenAfter, String san) {
             // Baseline co chu dich: gui ca FEN va SAN, khong bat client tu suy ra.
@@ -109,6 +118,7 @@ public interface WireFormat {
         }
     };
 
+    /** Chon dinh dang theo ten trong cau hinh ("binary"/"json"); ten khac thi nem loi. */
     static WireFormat of(String name) {
         if ("json".equalsIgnoreCase(name)) {
             return JSON;

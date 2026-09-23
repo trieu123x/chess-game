@@ -24,9 +24,11 @@ public final class FrameCodec {
     private static final int HEADER = 9;          // LEN + TYPE + SEQ
     private static final int LENGTH_PREFIX = 4;
 
+    /** Lop tien ich, khong cho tao instance. */
     private FrameCodec() {
     }
 
+    /** Dong goi mot frame (LEN|TYPE|SEQ|PAYLOAD) thanh ByteBuffer san sang de ghi; payload qua lon thi nem loi 2003. */
     public static ByteBuffer encode(int type, int seq, byte[] payload) {
         if (payload.length + 5 > MAX_FRAME) {
             throw new CgpException(ErrorCode.FRAME_TOO_LARGE,
@@ -40,10 +42,12 @@ public final class FrameCodec {
         return out.flip();
     }
 
+    /** Dong goi mot frame khong co payload. */
     public static ByteBuffer encode(int type, int seq) {
         return encode(type, seq, Frame.EMPTY);
     }
 
+    /** Dong goi mot frame co payload la chuoi JSON (UTF-8). */
     public static ByteBuffer encodeJson(int type, int seq, String json) {
         return encode(type, seq, json.getBytes(StandardCharsets.UTF_8));
     }
@@ -56,14 +60,17 @@ public final class FrameCodec {
 
         private ByteBuffer buffer;   // luon o che do GHI
 
+        /** Tao Decoder voi bo dem ban dau 8 KiB. */
         public Decoder() {
             this(8192);
         }
 
+        /** Tao Decoder voi dung luong bo dem ban dau tuy chon (toi thieu bang kich thuoc header). */
         public Decoder(int initialCapacity) {
             this.buffer = ByteBuffer.allocate(Math.max(initialCapacity, HEADER));
         }
 
+        /** Nap toan bo mang byte vua doc duoc, tra ve cac frame da du. */
         public List<Frame> feed(byte[] data) {
             return feed(data, 0, data.length);
         }
@@ -108,6 +115,7 @@ public final class FrameCodec {
             return buffer.position();
         }
 
+        /** Dam bao bo dem con cho cho `extra` byte: gap doi dung luong khi can nhung khong vuot MAX_FRAME. */
         private void ensureWritable(int extra) {
             if (buffer.remaining() >= extra) {
                 return;

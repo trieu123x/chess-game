@@ -55,6 +55,7 @@ public final class ServerCore implements AutoCloseable {
     private final AtomicLong rejected = new AtomicLong();
     private long lastHeartbeatAt;
 
+    /** Doc cau hinh: dinh dang hot path, rate limit, timeout truoc dang nhap, chu ky/timeout heartbeat, thoi han phien. */
     public ServerCore(Config config, Database database, GameService games) {
         this.database = database;
         this.games = games;
@@ -67,22 +68,27 @@ public final class ServerCore implements AutoCloseable {
         this.traceFrames = config.getBoolean("log.frames", false);
     }
 
+    /** Dinh dang ma hoa hot path dang dung (binary hoac json). */
     public WireFormat format() {
         return format;
     }
 
+    /** Cap id tang dan cho ket noi moi. */
     public long nextConnectionId() {
         return nextConnectionId.getAndIncrement();
     }
 
+    /** So ket noi dang mo. */
     public int openConnections() {
         return connections.size();
     }
 
+    /** Dem them mot ket noi bi tu choi vi qua tai. */
     public void countRejected() {
         rejected.incrementAndGet();
     }
 
+    /** Dang ky ket noi moi vao bang ket noi cua server. */
     public void register(Connection connection) {
         connections.put(connection.id(), connection);
         accepted.incrementAndGet();
@@ -153,6 +159,7 @@ public final class ServerCore implements AutoCloseable {
 
     // ------------------------------------------------------------- dinh tuyen
 
+    /** Dinh tuyen mot frame toi ham xu ly theo TYPE; chan message can dang nhap neu chua dang nhap. */
     private void dispatch(Connection connection, Frame frame, long receivedAt) {
         if (traceFrames) {
             System.out.printf("  %s <- %s%n", connection, frame);
@@ -194,6 +201,7 @@ public final class ServerCore implements AutoCloseable {
         }
     }
 
+    /** Xu ly LOGIN: kiem tra dinh dang va mat khau, da phien cu, tao phien moi, tra LOGIN_OK, do RTT va noi lai van dang do neu co. */
     private void handleLogin(Connection connection, Frame frame) {
         JsonNode payload = Json.parse(frame.payload());
         String username = Json.required(payload, "username");
@@ -298,6 +306,7 @@ public final class ServerCore implements AutoCloseable {
                 resumed ? "noi lai vao van dang danh" : "khong con van nao");
     }
 
+    /** Xu ly LOGOUT: xoa phien trong database, xac nhan roi dong ket noi. */
     private void handleLogout(Connection connection, Frame frame) {
         if (connection.sessionToken() != null) {
             database.deleteSession(connection.sessionToken());
@@ -368,6 +377,7 @@ public final class ServerCore implements AutoCloseable {
         }
     }
 
+    /** Gui HEARTBEAT toi moi ket noi da dang nhap va danh dau moc gui de do RTT. */
     private void sendHeartbeats() {
         for (Connection connection : connections.values()) {
             if (!connection.authenticated()) {
@@ -382,6 +392,7 @@ public final class ServerCore implements AutoCloseable {
         }
     }
 
+    /** Dong cac ket noi im lang qua lau: chua dang nhap qua han, hoac da dang nhap nhung mat heartbeat. */
     private void scanTimeouts(long now) {
         List<Connection> doomed = new ArrayList<>();
         for (Connection connection : connections.values()) {
@@ -403,6 +414,7 @@ public final class ServerCore implements AutoCloseable {
 
     // ---------------------------------------------------------------- dong
 
+    /** Gui frame ERROR voi ma va thong bao; hang doi day thi danh dau dong ket noi. */
     public void sendError(Connection connection, int code, String message) {
         try {
             connection.send(FrameCodec.encode(MsgType.ERROR, 0,
@@ -412,6 +424,7 @@ public final class ServerCore implements AutoCloseable {
         }
     }
 
+    /** Dong mot ket noi: gui loi (neu co), day not hang doi gui, go khoi bang, bao GameService va dong transport. */
     public void close(Connection connection, CgpException reason) {
         if (reason != null) {
             try {
@@ -448,11 +461,13 @@ public final class ServerCore implements AutoCloseable {
         }
     }
 
+    /** Tra ve thong ke so ket noi da nhan, bi tu choi va dang mo. */
     public String stats() {
         return String.format("da nhan %d ket noi, tu choi %d, dang mo %d",
                 accepted.get(), rejected.get(), connections.size());
     }
 
+    /** Dong tat ca ket noi dang mo. */
     @Override
     public void close() {
         for (Connection connection : new ArrayList<>(connections.values())) {

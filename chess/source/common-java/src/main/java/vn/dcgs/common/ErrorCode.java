@@ -8,6 +8,7 @@ package vn.dcgs.common;
  */
 public final class ErrorCode {
 
+    /** Lop hang so, khong cho tao instance. */
     private ErrorCode() {
     }
 
@@ -50,6 +51,7 @@ public final class ErrorCode {
         };
     }
 
+    /** Tra ve thong bao loi de doc (tieng Viet) ung voi ma loi. */
     public static String message(int code) {
         return switch (code) {
             case BAD_CREDENTIALS -> "Sai tai khoan hoac mat khau";

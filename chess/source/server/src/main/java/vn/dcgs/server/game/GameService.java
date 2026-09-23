@@ -67,6 +67,7 @@ public final class GameService implements AutoCloseable {
         private final long since;
         private boolean noticed;
 
+        /** Tao ban ghi nguoi dang cho ghep cap. */
         Waiting(Connection connection, long userId, String username, int elo, long since) {
             this.connection = connection;
             this.userId = userId;
@@ -76,6 +77,7 @@ public final class GameService implements AutoCloseable {
         }
     }
 
+    /** Doc cau hinh, tao thread pool cho cac ban co va scheduler quet dong ho moi 100 ms. */
     public GameService(Config config, Database database, DbWriter dbWriter, RulesEngine rules) {
         this.database = database;
         this.dbWriter = dbWriter;
@@ -108,6 +110,7 @@ public final class GameService implements AutoCloseable {
 
     // ------------------------------------------------------------- ghep cap
 
+    /** Dua nguoi choi vao hang doi ghep cap theo the thuc; neu da co nguoi cho thi ghep ngay va bat dau van. */
     public void joinQueue(Connection connection, String timeControl, int elo) {
         if (connection.gameId() != 0) {
             throw new CgpException(ErrorCode.ALREADY_QUEUED, "ban dang trong mot van");
@@ -147,6 +150,7 @@ public final class GameService implements AutoCloseable {
                 elo, System.currentTimeMillis()), normalized);
     }
 
+    /** Rut ket noi khoi moi hang doi ghep cap. */
     public void leaveQueue(Connection connection) {
         for (Deque<Waiting> queue : queues.values()) {
             synchronized (queue) {
@@ -155,6 +159,7 @@ public final class GameService implements AutoCloseable {
         }
     }
 
+    /** Tao van moi: ghi vao database, tao GameActor (nguoi cho lau hon cam Trang), gan van cho hai ket noi va bat dau van. */
     private void startGame(Waiting first, Waiting second, String timeControl) {
         // Nguoi cho lau hon cam Trang - de don gian va co the giai thich duoc.
         Waiting whiteSide = first;
@@ -182,22 +187,27 @@ public final class GameService implements AutoCloseable {
 
     // ------------------------------------------------------- dinh tuyen vao ban
 
+    /** Chuyen nuoc di cua nguoi choi toi GameActor cua van ho dang choi. */
     public void onMove(Connection connection, MoveCodec.Move move, long receivedAt) {
         actorOf(connection).onMove(connection, move, receivedAt);
     }
 
+    /** Chuyen yeu cau dau hang toi GameActor cua van. */
     public void onResign(Connection connection) {
         actorOf(connection).onResign(connection);
     }
 
+    /** Chuyen loi de nghi hoa toi GameActor cua van. */
     public void onDrawOffer(Connection connection) {
         actorOf(connection).onDrawOffer(connection);
     }
 
+    /** Chuyen cau tra loi de nghi hoa (dong y/tu choi) toi GameActor cua van. */
     public void onDrawReply(Connection connection, boolean accept) {
         actorOf(connection).onDrawReply(connection, accept);
     }
 
+    /** Gui lai snapshot van dang choi cho ket noi (HISTORY_REQ). */
     public void sendSnapshot(Connection connection) {
         GameActor actor = games.get(connection.gameId());
         if (actor != null) {
@@ -205,6 +215,7 @@ public final class GameService implements AutoCloseable {
         }
     }
 
+    /** Tim GameActor cua van ket noi dang choi; khong co thi nem loi 3003. */
     private GameActor actorOf(Connection connection) {
         GameActor actor = games.get(connection.gameId());
         if (actor == null) {
@@ -296,6 +307,7 @@ public final class GameService implements AutoCloseable {
                 "moves", san))));
     }
 
+    /** Ngung xem mot van: go khoi danh sach khan gia cua van. */
     public void spectateLeave(Connection connection, long gameId) {
         GameActor actor = games.get(gameId);
         if (actor != null) {
@@ -345,6 +357,7 @@ public final class GameService implements AutoCloseable {
         }
     }
 
+    /** Don dep khi van ket thuc: go van khoi bang van dang chay va bang nguoi choi, tang dem. */
     public void onGameFinished(GameActor actor) {
         games.remove(actor.gameId());
         byPlayer.remove(actor.white().userId(), actor);
@@ -352,6 +365,7 @@ public final class GameService implements AutoCloseable {
         gamesFinished.incrementAndGet();
     }
 
+    /** Chay moi 100 ms: cap nhat dong ho/an han cua tung van, danh thuc van dang dung vi rules service, bao nguoi cho ghep lau. */
     private void tick() {
         long now = System.currentTimeMillis();
         boolean rulesBack = rules.available();
@@ -397,6 +411,7 @@ public final class GameService implements AutoCloseable {
         return new int[] { Integer.parseInt(parts[0]) * 1000, Integer.parseInt(parts[1]) * 1000 };
     }
 
+    /** Kiem tra the thuc dung dang "so+so"; sai thi nem loi 2001. */
     private static String normalize(String value) {
         if (value == null || !value.matches("\\d{1,5}\\+\\d{1,3}")) {
             throw new CgpException(ErrorCode.MALFORMED_FRAME, "the thuc khong hop le: " + value);
@@ -404,10 +419,12 @@ public final class GameService implements AutoCloseable {
         return value;
     }
 
+    /** So van dang dien ra. */
     public int liveGameCount() {
         return games.size();
     }
 
+    /** Tra ve thong ke so van dang choi, da bat dau, da ket thuc, nguoi dang cho ghep va khan gia. */
     public String stats() {
         int waiting = queues.values().stream().mapToInt(Deque::size).sum();
         int spectators = games.values().stream().mapToInt(GameActor::spectatorCount).sum();
@@ -415,6 +432,7 @@ public final class GameService implements AutoCloseable {
                 games.size(), gamesStarted.get(), gamesFinished.get(), waiting, spectators);
     }
 
+    /** Dung scheduler va thread pool cua cac ban co. */
     @Override
     public void close() {
         scheduler.shutdownNow();

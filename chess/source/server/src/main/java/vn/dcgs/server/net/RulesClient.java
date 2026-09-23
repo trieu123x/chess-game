@@ -50,6 +50,7 @@ public final class RulesClient implements RulesEngine {
     private final AtomicLong misses = new AtomicLong();
     private final AtomicLong failures = new AtomicLong();
 
+    /** Doc cau hinh (timeout, retry, cache, circuit breaker), tao cache LRU va danh sach endpoint rules service. */
     public RulesClient(Config config) {
         this.timeoutMs = config.getInt("rules.timeoutMs", 200);
         this.retries = config.getInt("rules.retries", 2);
@@ -59,6 +60,7 @@ public final class RulesClient implements RulesEngine {
         // LRU don gian: LinkedHashMap theo thu tu truy cap, bo phan tu cu nhat.
         this.cache = java.util.Collections.synchronizedMap(
                 new LinkedHashMap<>(1024, 0.75f, true) {
+                    /** Bo phan tu it dung nhat khi cache vuot kich thuoc toi da. */
                     @Override
                     protected boolean removeEldestEntry(Map.Entry<String, Verdict> eldest) {
                         return size() > cacheSize;
@@ -154,6 +156,7 @@ public final class RulesClient implements RulesEngine {
         return false;
     }
 
+    /** Hoi rules service danh sach moi nuoc di hop le (dang UCI) cua the co FEN. */
     public List<String> legalMoves(String fen) {
         Frame reply = call(MsgType.RULES_LEGAL_MOVES, Json.of(Map.of("fen", fen)));
         List<String> moves = new ArrayList<>();
@@ -217,6 +220,7 @@ public final class RulesClient implements RulesEngine {
         return best;
     }
 
+    /** Tra ve thong ke: ti le trung cache, so loi va trang thai cac endpoint. */
     @Override
     public String stats() {
         long hit = hits.get();
@@ -226,6 +230,7 @@ public final class RulesClient implements RulesEngine {
                 hit, total, total == 0 ? 0.0 : hit * 100.0 / total, failures.get(), endpoints);
     }
 
+    /** Dong moi ket noi dang nam trong pool cua cac endpoint. */
     @Override
     public void close() {
         endpoints.forEach(Endpoint::close);
@@ -249,6 +254,7 @@ public final class RulesClient implements RulesEngine {
         private long openedUntil;
         private boolean proven;
 
+        /** Tao endpoint voi dia chi, kich thuoc pool va nguong circuit breaker. */
         Endpoint(String host, int port, int poolSize, int breakerThreshold, long breakerOpenMs) {
             this.host = host;
             this.port = port;
@@ -257,14 +263,17 @@ public final class RulesClient implements RulesEngine {
             this.breakerOpenMs = breakerOpenMs;
         }
 
+        /** Endpoint co dang nhan request khong (circuit breaker khong mo). */
         synchronized boolean available() {
             return System.currentTimeMillis() >= openedUntil;
         }
 
+        /** So request dang cho phan hoi tu endpoint nay. */
         synchronized int outstanding() {
             return outstanding;
         }
 
+        /** Ghi nhan mot lan goi thanh cong: xoa dem loi lien tiep va danh dau da tung tra loi duoc. */
         synchronized void recordSuccess() {
             consecutiveFailures = 0;
             proven = true;
@@ -275,6 +284,7 @@ public final class RulesClient implements RulesEngine {
             return proven && consecutiveFailures == 0;
         }
 
+        /** Ghi nhan mot lan goi loi; khong ket noi duoc hoac loi lien tiep qua nguong thi mo mach tam ngung endpoint. */
         synchronized void recordFailure(boolean cannotConnect) {
             // Khong mo duoc ket noi nghia la tien trinh do khong chay: mo mach
             // ngay, khong can doi du so lan that bai.
@@ -292,6 +302,7 @@ public final class RulesClient implements RulesEngine {
             }
         }
 
+        /** Muon mot ket noi trong pool, gui request va cho phan hoi; ket noi loi thi bo han thay vi tra ve pool. */
         Frame exchange(int type, byte[] payload, int timeoutMs) throws IOException {
             Link link = borrow(timeoutMs);
             synchronized (this) {
@@ -314,6 +325,7 @@ public final class RulesClient implements RulesEngine {
             }
         }
 
+        /** Lay ket noi ranh trong pool; het thi mo ket noi moi (pool day thi mo ket noi tam ngoai pool). */
         private Link borrow(int timeoutMs) throws IOException {
             synchronized (this) {
                 Link link = idle.pollFirst();
@@ -336,6 +348,7 @@ public final class RulesClient implements RulesEngine {
             }
         }
 
+        /** Tra ket noi ve pool; pool da du thi dong ket noi do. */
         private synchronized void release(Link link) {
             if (idle.size() < poolSize) {
                 idle.addLast(link);
@@ -345,11 +358,13 @@ public final class RulesClient implements RulesEngine {
             }
         }
 
+        /** Dong moi ket noi ranh trong pool. */
         synchronized void close() {
             idle.forEach(Link::close);
             idle.clear();
         }
 
+        /** Hien thi endpoint dang host:port, kem ghi chu neu dang mo mach. */
         @Override
         public String toString() {
             return host + ":" + port + (available() ? "" : "(dang mo mach)");
@@ -366,6 +381,7 @@ public final class RulesClient implements RulesEngine {
         private final byte[] buffer = new byte[8192];
         private int seq = 1;
 
+        /** Mo ket noi TCP toi rules service voi timeout ket noi va timeout doc. */
         Link(String host, int port, int timeoutMs) throws IOException {
             socket = new Socket();
             socket.connect(new InetSocketAddress(host, port), timeoutMs);
@@ -375,6 +391,7 @@ public final class RulesClient implements RulesEngine {
             out = socket.getOutputStream();
         }
 
+        /** Gui mot frame request va doc cho toi khi nhan du mot frame phan hoi. */
         Frame exchange(int type, byte[] payload) throws IOException {
             java.nio.ByteBuffer frame = FrameCodec.encode(type, seq++, payload);
             byte[] bytes = new byte[frame.remaining()];
@@ -394,6 +411,7 @@ public final class RulesClient implements RulesEngine {
             }
         }
 
+        /** Dong socket, bo qua loi. */
         void close() {
             try {
                 socket.close();
